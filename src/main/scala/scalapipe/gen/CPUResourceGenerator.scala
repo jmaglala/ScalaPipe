@@ -60,7 +60,7 @@ private[scalapipe] class CPUResourceGenerator(
     }
     
     // Fetch the defined schedulers
-    private def getScheduleGenerator : ScheduleGenerator = {
+    /*private def getScheduleGenerator : ScheduleGenerator = {
         val sched = sp.parameters.get[String]('sched)
         sched match {
             case "SegCache"               => cacheScheduleGenerator
@@ -68,7 +68,8 @@ private[scalapipe] class CPUResourceGenerator(
                 Error.raise(s"unknown scheduler: $sched")
                 cacheScheduleGenerator
         }
-    }
+    }*/
+    private def getScheduleGenerator : ScheduleGenerator = cacheScheduleGenerator
     
     private def shouldEmit(device: Device): Boolean = {
         device.platform == Platforms.C && device.host == host
