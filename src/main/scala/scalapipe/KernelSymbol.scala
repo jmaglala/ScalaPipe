@@ -6,18 +6,21 @@ private[scalapipe] abstract class KernelSymbol(
 
 private[scalapipe] abstract class KernelPort(
         _name: String,
-        _valueType: ValueType
+        _valueType: ValueType,
+        val rate: Int
     ) extends KernelSymbol(_name, _valueType)
 
 private[scalapipe] class KernelInput(
         _name: String,
-        _valueType: ValueType
-    ) extends KernelPort(_name, _valueType)
+        _valueType: ValueType,
+        _rate: Int
+    ) extends KernelPort(_name, _valueType, _rate)
 
 private[scalapipe] class KernelOutput(
         _name: String,
-        _valueType: ValueType
-    ) extends KernelPort(_name, _valueType)
+        _valueType: ValueType,
+        _rate: Int
+    ) extends KernelPort(_name, _valueType, _rate)
 
 private[scalapipe] class KernelLocal(
         _name: String,

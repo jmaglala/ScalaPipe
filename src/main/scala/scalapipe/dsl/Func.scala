@@ -41,7 +41,7 @@ class Func(_name: String) extends Kernel(_name) {
     // Return a value.
     def __return[T <% ASTNode](result: T) = {
         if (outputs.isEmpty) {
-            outputs += new KernelOutput(getLabel, ValueType.any)
+            outputs += new KernelOutput(getLabel, ValueType.any, 1)
         }
         ASTReturnNode(result, this)
     }

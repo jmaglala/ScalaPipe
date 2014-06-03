@@ -52,7 +52,7 @@ private[scalapipe] class InternalFunctionType(
             symbols.setOutputType(valueType)
             val name = func.outputs.head.name
             func.outputs.clear
-            func.outputs += new KernelOutput(name, valueType)
+            func.outputs += new KernelOutput(name, valueType, 1)
         }
 
     }
