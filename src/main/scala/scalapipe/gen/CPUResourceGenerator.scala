@@ -15,7 +15,7 @@ private[scalapipe] class CPUResourceGenerator(
 
     private val edgeGenerators = new HashMap[EdgeGenerator, HashSet[Stream]]
     private val emittedKernelTypes = new HashSet[KernelType]
-    private val threadIds = new HashMap[KernelInstance, Int]
+    private val kernIds = new HashMap[KernelInstance, Int]
 
     private lazy val openCLEdgeGenerator = new OpenCLEdgeGenerator(sp)
     private lazy val smartFusionEdgeGenerator = new SmartFusionEdgeGenerator(sp)
@@ -359,7 +359,7 @@ private[scalapipe] class CPUResourceGenerator(
     }
     private def emitThread(kernel: KernelInstance) {
 
-        val id = threadIds(kernel)
+        val id = kernIds(kernel)
         val name = kernel.name
         val instance = kernel.label
         val kernelType = kernel.kernelType
@@ -538,13 +538,14 @@ private[scalapipe] class CPUResourceGenerator(
         }
         
         //threadIds ++= cpuInstances.zipWithIndex // This sets thread per kernel
-        threadIds = sp.parameters.get[String]('cores) // thread per core
+        //val threadIds = sp.parameters.get[String]('cores) // thread per core
+        val threadIds = 1 // Only using one thread
         
         // Write include files that we need.
         write("#include \"ScalaPipe.h\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
-        write("#include <sstream>")}
+        write("#include <sstream>")
 
         // Get streams on this host.
         val localStreams = sp.streams.filter { s =>
@@ -619,7 +620,7 @@ private[scalapipe] class CPUResourceGenerator(
             emitKernelSend,
             emitKernelAvailable,
             emitKernelRead,
-            emitKernelRelease,
+            emitKernelRelease
             //emitThread
         )
         cpuInstances.foreach { i =>
@@ -628,8 +629,9 @@ private[scalapipe] class CPUResourceGenerator(
 
         // Write the thread functions
         // 3) create the thread functions
-        for (t <- threadIds.values) {
-            getSchedulerGeberator.emitThread(t)
+        var t = 0
+        for (t <- 0 to threadIds-1) {
+            getScheduleGenerator.emitThread(t)
         }
         
         // Create the "get_arg" function.
@@ -641,7 +643,7 @@ private[scalapipe] class CPUResourceGenerator(
         enter
 
         // Declare threads.
-        for (t <- threadIds.values) {
+        for (t <- 0 to threadIds-1) {
             write(s"pthread_t thread$t;")
         }
 
@@ -685,10 +687,10 @@ private[scalapipe] class CPUResourceGenerator(
         write("atexit(showStats);")
 
         // Start the threads.
-        for (t <- threadIds.values) {
+        for (t <- 0 to threadIds-1) {
             write(s"pthread_create(&thread$t, NULL, run_thread$t, NULL);")
         }
-        for (t <- threadIds.values) {
+        for (t <- 0 to threadIds-1) {
             write(s"pthread_join(thread$t, NULL);")
         }
 
