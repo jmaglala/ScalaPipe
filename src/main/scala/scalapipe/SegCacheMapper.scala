@@ -4,11 +4,14 @@ private[scalapipe] class SegCacheMapper(
     val _sp: ScalaPipe
 ) extends Mapper(_sp)
 {
-    def map() {
-        // Ananlyze the graph
-        
-        // Build the list of segments
-    
-        // Reassign the buffers
+    def map() 
+    {
+        var seg = Seq[KernelInstance]()
+        // Put everything into one segment
+        for (k <- sp.instances) 
+        {
+            seg :+= k
+        }
+        sp.segments :+= seg
     }
 }

@@ -22,6 +22,9 @@ private[scalapipe] class ScalaPipe {
     private val deviceManager = new DeviceManager(parameters)
     private val resourceManager = new ResourceManager(this)
 
+    // Scheduling states
+    private[scalapipe] var segments = Seq[Seq[KernelInstance]]()
+    
     private def addKernelType(k: Kernel,
                               p: Platforms.Value): KernelType = {
 
@@ -471,6 +474,17 @@ private[scalapipe] class ScalaPipe {
         insertParameters
         insertMeasures
 
+        // Map?
+        val map = parameters.get[String]('sched)
+        var mapper: Mapper = {
+            map match {
+                case "SegCache" =>
+                    val m = new SegCacheMapper(this)
+                    m
+            }
+        }
+        mapper.map()
+        
         // Create the directory.
         val dir = new File(dirname)
         dir.mkdir
@@ -490,7 +504,7 @@ private[scalapipe] class ScalaPipe {
                 RawFileGenerator.emitFile(dir, "saturn-lpddr.v")
             case _ => Error.raise(s"Unknown FPGA type: $fpga")
         }
-
+        
         emitTimeTrial(dir)
         emitKernels(dir)
         emitDescription(dir)
