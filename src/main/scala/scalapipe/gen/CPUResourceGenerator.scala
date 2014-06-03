@@ -23,7 +23,9 @@ private[scalapipe] class CPUResourceGenerator(
     private lazy val saturnEdgeGenerator = new SaturnEdgeGenerator(sp)
     private lazy val sockEdgeGenerator = new SockEdgeGenerator(sp, host)
     private lazy val cEdgeGenerator = new CEdgeGenerator
-
+    
+    private lazy val cacheScheduleGenerator = new CacheScheduleGenerator(sp)
+    
     private def getHDLEdgeGenerator: EdgeGenerator = {
         val fpga = sp.parameters.get[String]('fpga)
         fpga match {
@@ -56,7 +58,18 @@ private[scalapipe] class CPUResourceGenerator(
         edgeGenerators(generator) += stream
 
     }
-
+    
+    // Fetch the defined schedulers
+    private def getScheduleGenerator : ScheduleGenerator = {
+        val sched = sp.parameters.get[String]('sched)
+        sched match {
+            case "SegCache"               => cacheScheduleGenerator
+            case _ =>
+                Error.raise(s"unknown scheduler: $sched")
+                cacheScheduleGenerator
+        }
+    }
+    
     private def shouldEmit(device: Device): Boolean = {
         device.platform == Platforms.C && device.host == host
     }
@@ -523,13 +536,15 @@ private[scalapipe] class CPUResourceGenerator(
         val cpuInstances = localInstances.filter { instance =>
             shouldEmit(instance.device)
         }
-        threadIds ++= cpuInstances.zipWithIndex
-
+        
+        //threadIds ++= cpuInstances.zipWithIndex // This sets thread per kernel
+        threadIds = sp.parameters.get[String]('cores) // thread per core
+        
         // Write include files that we need.
         write("#include \"ScalaPipe.h\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
-        write("#include <sstream>")
+        write("#include <sstream>")}
 
         // Get streams on this host.
         val localStreams = sp.streams.filter { s =>
@@ -605,12 +620,18 @@ private[scalapipe] class CPUResourceGenerator(
             emitKernelAvailable,
             emitKernelRead,
             emitKernelRelease,
-            emitThread
+            //emitThread
         )
         cpuInstances.foreach { i =>
             funcs.foreach { f => f.apply(i) }
         }
 
+        // Write the thread functions
+        // 3) create the thread functions
+        for (t <- threadIds.values) {
+            getSchedulerGeberator.emitThread(t)
+        }
+        
         // Create the "get_arg" function.
         emitGetArg
 

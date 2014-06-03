@@ -22,6 +22,9 @@ private[scalapipe] class ScalaPipe {
     private val deviceManager = new DeviceManager(parameters)
     private val resourceManager = new ResourceManager(this)
 
+    // Scheduling states
+    private[scalapipe] var segments = Seq[Seq[KernelInstance]]()
+    
     private def addKernelType(k: Kernel,
                               p: Platforms.Value): KernelType = {
 
