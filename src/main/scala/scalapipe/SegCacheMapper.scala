@@ -43,6 +43,8 @@ private[scalapipe] class SegCacheMapper(
             kernelToSegment += (k -> seg)
         }
         sp.segments :+= seg
+        
+        sp.segments.foreach(println)
     }
     
     private[this] def assign_buffers()
