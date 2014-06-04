@@ -40,10 +40,16 @@ private[scalapipe] class SegCacheMapper(
             }
             
             seg :+= k
-            kernelToSegment += (k -> seg)
+            
         }
         sp.segments :+= seg
-        
+        for (segment <- sp.segments)
+        {
+            for(k <- segment)
+            {
+                kernelToSegment += (k -> segment)
+            }
+        }
         sp.segments.foreach(println)
     }
     
