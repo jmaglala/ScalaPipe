@@ -552,7 +552,7 @@ private[scalapipe] class CPUResourceGenerator(
         val localStreams = sp.streams.filter { s =>
             shouldEmit(s.sourceKernel.device) || shouldEmit(s.destKernel.device)
         }
-
+        
         // Create edge generators for local streams.
         localStreams.foreach { s => addEdgeGenerator(s) }
 
