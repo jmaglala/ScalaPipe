@@ -84,7 +84,7 @@ private[scalapipe] class CPUResourceGenerator(
         }
     }
 
-    private def emitKernelStruct(kernel: KernelInstance) {
+    private def emitKernelStruct(kernel	: KernelInstance) {
 
         val inputCount = kernel.getInputs.size
         val outputCount = kernel.getOutputs.size
@@ -628,12 +628,317 @@ private[scalapipe] class CPUResourceGenerator(
             funcs.foreach { f => f.apply(i) }
         }
 
+        //Iterate through KernelInstances
+        for (kernel <- cpuInstances) {
+		//Write out instance init functions
+		val instance = kernel.label //instance#
+		write(s"static void ${instance}_init()")
+		write("{")
+		enter
+		  write(s"${instance}.data.get_free = ${instance}_get_free;")
+		  write(s"${instance}.data.allocate = ${instance}_allocate;")
+		  write(s"${instance}.data.send = ${instance}_send;")
+		  write(s"${instance}.data.get_available = ${instance}_get_available;")
+		  write(s"${instance}.data.read_value = ${instance}_read_value;")
+		  write(s"${instance}.data.release = ${instance}_release;")
+		  emitKernelInit(kernel)
+		leave
+		write("}")
+	    }
+        
+        var segNumber = 1
+        for (segment <- sp.segments)
+        {
+	    write(s"static void fire_segment${segNumber}()")
+	    write(s"{")
+	    enter
+	    //Write kernel inits and rates
+	    for (kernel <- segment) {
+		//getScheduleGenerator.emitThread(t)
+		val name = kernel.name //kernel#
+		val instance = kernel.label //instance#
+		val id = kernel.index //#
+		if (kernel.index != segment.last.index) {
+		  val outputRate = kernel.kernel.outputs(0).rate;
+		  write(s"int ${name}_out_rate = ${outputRate};");
+		  
+		  val bufferSize = kernel.getOutputs(0).parameters.get[Int]('queueDepth)
+		  write(s"int ${name}_out_buf_size = ${bufferSize-1};");
+		}
+		if (kernel.index != segment.head.index) {
+		  val inputRate = kernel.kernel.inputs(0).rate;
+		  write(s"int ${name}_in_rate = ${inputRate};");
+		}
+		write(s"sp_${name}_init(&${instance}.priv);");
+		
+	    }
+	    
+	    if (segment.head == segment.last)
+	    {
+	      val id = segment.head.index
+	      write(s"sp_kernel${id}_run(&instance${id}.priv);")
+	    }
+	    else {
+	    //Write run_thread variables
+	    //val startingKernel = segment.head.index
+	    write(s"int fireKernelNum = ${segment.head.index};");
+	    write("int fireCount = 0;");
+	    write("bool inputEmpty = false;");
+	    
+	    //Get total number of iterations from parameter
+	    //var total = sp.parameters.get[Int]('iterations)
+	    var total = 1;
+	    write(s"int total = $total;");
+	    
+	    //Create while loop to run until the fireCount == requested total
+	    write("while (inputEmpty == false)");
+	    write("{");
+	    enter
+	      //Switch statement to determine which kernel to fire
+	      write("switch (fireKernelNum)");
+	      write("{");
+	      enter
+		//Iterate through 1 to # of kernels
+		for (kernel <- segment) {
+		  //getScheduleGenerator.emitThread(t)
+		  val name = kernel.name //kernel#
+		  val instance = kernel.label //instance#
+		  val id = kernel.index //#
+		  //If writing out code for first kernel
+		  if (id == segment.head.index)
+		  {
+		    write(s"case ${id}:")
+		    enter
+		      //If it has fired the requested total and the output buffer < the next kernel's required input then end
+		      write(s"if (fireCount == total && instance${id+1}_get_available(0) < kernel${id+1}_in_rate)");
+		      write("{");
+		      enter
+			write("inputEmpty = true;");
+			write("break;");
+		      leave
+		      write("}");
+		      //If it has fired the requested total then move onto the next kernel
+		      write("else if (fireCount == total)");
+		      write("{");
+		      enter
+			write("fireKernelNum++;");
+			write("break;");
+		      leave
+		      write("}");
+		      //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
+		      write(s"if ((instance${id+1}_get_available(0) + kernel${id}_out_rate) > kernel${id}_out_buf_size)");
+		      write("{");
+		      enter
+			write("fireKernelNum++;");
+		      leave
+		      write("}");
+		      //Otherwise fire kernel and increment fireCount
+		      write("else")
+		      write("{")
+		      enter
+			write("fireCount++;")
+			write(s"sp_kernel${id}_run(&instance${id}.priv);")
+		      leave
+		      write("}")
+		      write("break;")
+		    leave
+		  }
+		  //If writing out code for the last kernel
+		  else if (id == segment.last.index) {
+		    write(s"case ${id}:")
+		      enter
+			//If the input buffer < this kernel's input rate, move back a kernel
+			write(s"if (instance${id}_get_available(0) < kernel${id}_in_rate)")
+			write("{")
+			enter
+			write("fireKernelNum--;")
+			leave
+			write("}")
+			//Otherwise fire kernel and increment fireCount
+			write("else")
+			write("{")
+			enter
+			  write(s"sp_kernel${id}_run(&instance${id}.priv);")
+			leave
+			write("}")
+			write("break;")
+		      leave
+		}
+		else {
+		  write(s"case ${id}:")
+		  enter
+		    //If 
+		    write(s"if ((instance${id+1}_get_available(0) + kernel${id}_out_rate) > kernel${id}_out_buf_size || ((instance${id}_get_available(0) < kernel${id}_in_rate) && instance${id+1}_get_available(0) > kernel${id+1}_in_rate))")
+		    write("{")
+		    enter
+		      write("fireKernelNum++;")
+		    leave
+		    write("}")
+		    write(s"else if (instance${id}_get_available(0) < kernel${id}_in_rate)")
+		    write("{")
+		    enter
+		      write("fireKernelNum--;")
+		    leave
+		    write("}")
+		    write("else")
+		    write("{")
+		    enter
+		      write(s"sp_kernel${id}_run(&instance${id}.priv);")
+		    leave
+		    write("}")
+		    write("break;")
+		  leave
+		  } 
+		}
+		leave
+		write("}");
+	      leave
+	      write("}")
+	      }
+	    leave
+	    write("}")
+	    segNumber += 1
+        }
+        
+        
         // Write the thread functions
         // 3) create the thread functions
-        var t = 0
-        for (t <- 0 to threadIds-1) {
-            getScheduleGenerator.emitThread(t)
-        }
+        /*write(s"static void *run_thread1(void *arg)")
+	    write(s"{")
+	    enter
+	    for (segment <- sp.segments)
+	    //Write kernel inits and rates
+	    for (kernel <- cpuInstances) {
+		//getScheduleGenerator.emitThread(t)
+		val name = kernel.name //kernel#
+		val instance = kernel.label //instance#
+		val id = kernel.index //#
+		if (kernel.index != cpuInstances.length) {
+		  val inputRate = kernel.kernel.outputs(0).rate;
+		  write(s"int ${name}_out_rate = ${inputRate};");
+		  
+		  val bufferSize = kernel.getOutputs(0).parameters.get[Int]('queueDepth)
+		  write(s"int ${name}_out_buf_size = ${bufferSize-1};");
+		}
+		if (kernel.index != 1) {
+		  val inputRate = kernel.kernel.inputs(0).rate;
+		  write(s"int ${name}_in_rate = ${inputRate};");
+		}
+		write(s"sp_${name}_init(&${instance}.priv);");
+		
+	    }
+	    
+	    //Write run_thread variables
+	    write("int fireKernelNum = 1;");
+	    write("int fireCount = 0;");
+	    write("bool inputEmpty = false;");
+	    
+	    //Get total number of iterations from parameter
+	    var total = sp.parameters.get[Int]('iterations)
+	    write(s"int total = $total;");
+	    
+	    //Create while loop to run until the fireCount == requested total
+	    write("while (inputEmpty == false)");
+	    write("{");
+	    enter
+	      //Switch statement to determine which kernel to fire
+	      write("switch (fireKernelNum)");
+	      write("{");
+	      enter
+		//Iterate through 1 to # of kernels
+		for (iteration <- 1 to cpuInstances.length) {
+		  //If writing out code for first kernel
+		  if (iteration == 1)
+		  {
+		    write(s"case ${iteration}:")
+		    enter
+		      //If it has fired the requested total and the output buffer < the next kernel's required input then end
+		      write(s"if (fireCount == total && instance${iteration+1}_get_available(0) < kernel${iteration+1}_in_rate)");
+		      write("{");
+		      enter
+			write("inputEmpty = true;");
+			write("break;");
+		      leave
+		      write("}");
+		      //If it has fired the requested total then move onto the next kernel
+		      write("else if (fireCount == total)");
+		      write("{");
+		      enter
+			write("fireKernelNum++;");
+			write("break;");
+		      leave
+		      write("}");
+		      //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
+		      write(s"if ((instance${iteration+1}_get_available(0) + kernel${iteration}_out_rate) > kernel${iteration}_out_buf_size)");
+		      write("{");
+		      enter
+			write("fireKernelNum++;");
+		      leave
+		      write("}");
+		      //Otherwise fire kernel and increment fireCount
+		      write("else")
+		      write("{")
+		      enter
+			write("fireCount++;")
+			write(s"sp_kernel${iteration}_run(&instance${iteration}.priv);")
+		      leave
+		      write("}")
+		      write("break;")
+		    leave
+		  }
+		  //If writing out code for the last kernel
+		  else if (iteration == cpuInstances.length) {
+		    write(s"case ${iteration}:")
+		      enter
+			//If the input buffer < this kernel's input rate, move back a kernel
+			write(s"if (instance${iteration}_get_available(0) < kernel${iteration}_in_rate)")
+			write("{")
+			enter
+			 write("fireKernelNum--;")
+			leave
+			write("}")
+			//Otherwise fire kernel and increment fireCount
+			write("else")
+			write("{")
+			enter
+			  write(s"sp_kernel${iteration}_run(&instance${iteration}.priv);")
+			leave
+			write("}")
+			write("break;")
+		      leave
+		 }
+		 else {
+		  write(s"case ${iteration}:")
+		  enter
+		    //If 
+		    write(s"if ((instance${iteration+1}_get_available(0) + kernel${iteration}_out_rate) > kernel${iteration}_out_buf_size || ((instance${iteration}_get_available(0) < kernel${iteration}_in_rate) && instance${iteration+1}_get_available(0) > kernel${iteration+1}_in_rate))")
+		    write("{")
+		    enter
+		      write("fireKernelNum++;")
+		    leave
+		    write("}")
+		    write(s"else if (instance${iteration}_get_available(0) < kernel${iteration}_in_rate)")
+		    write("{")
+		    enter
+		      write("fireKernelNum--;")
+		    leave
+		    write("}")
+		    write("else")
+		    write("{")
+		    enter
+		      write(s"sp_kernel${iteration}_run(&instance${iteration}.priv);")
+		    leave
+		    write("}")
+		    write("break;")
+		  leave
+		  } 
+		}
+		leave
+		write("}");
+	    leave
+	    write("}")
+	leave
+	write("}")*/
         
         // Create the "get_arg" function.
         emitGetArg
@@ -644,7 +949,7 @@ private[scalapipe] class CPUResourceGenerator(
         enter
 
         // Declare threads.
-        for (t <- 0 to threadIds-1) {
+        for (t <- 1 to threadIds) {
             write(s"pthread_t thread$t;")
         }
 
@@ -679,19 +984,24 @@ private[scalapipe] class CPUResourceGenerator(
 
         }
 
+        for (kernel <- cpuInstances) {
+		val instance = kernel.label //instance#
+		write(s"${instance}_init();")
+	    }
+        
+        // Call the kernel init functions.
+        //cpuInstances.foreach(emitKernelInit)
+        
         // Initialize the edges.
         write(edgeInit)
-
-        // Call the kernel init functions.
-        cpuInstances.foreach(emitKernelInit)
-
+        
         write("atexit(showStats);")
 
         // Start the threads.
-        for (t <- 0 to threadIds-1) {
-            write(s"pthread_create(&thread$t, NULL, run_thread$t, NULL);")
+        for (t <- 1 to threadIds) {
+            write(s"pthread_create(&thread$t, NULL, &run_thread$t, NULL);")
         }
-        for (t <- 0 to threadIds-1) {
+        for (t <- 1 to threadIds) {
             write(s"pthread_join(thread$t, NULL);")
         }
 
