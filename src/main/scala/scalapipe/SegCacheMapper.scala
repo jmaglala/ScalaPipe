@@ -33,14 +33,16 @@ private[scalapipe] class SegCacheMapper(
         var i: Int = 0
         for (k <- sp.instances) 
         {
+            seg :+= k
+            kernelToSegment += (k -> seg)
+	    
             if (i == mid)
             {
+	    
                 sp.segments :+= seg
                 seg = Seq[KernelInstance]()
             }
-            
-            seg :+= k
-            kernelToSegment += (k -> seg)
+            i += 1
         }
         sp.segments :+= seg
         
