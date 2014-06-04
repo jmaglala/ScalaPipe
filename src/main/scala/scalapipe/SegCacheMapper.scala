@@ -12,8 +12,8 @@ private[scalapipe] class SegCacheMapper(
     private[this] def min_buff(s: Stream): Int =
     {
         // We'll just use the max of the two's rates
-        var sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
-        var destRate: Int   = s.destKernel.kernel.inputs(0).rate
+        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
+        val destRate: Int   = s.destKernel.kernel.inputs(0).rate
         
         if (sourceRate > destRate)
         {
@@ -28,9 +28,17 @@ private[scalapipe] class SegCacheMapper(
     private[this] def create_segments()
     {
         var seg = Seq[KernelInstance]()
+        var mid: Int = seg.length / 2
         // Put everything into one segment
+        var i: Int = 0
         for (k <- sp.instances) 
         {
+            if (i == mid)
+            {
+                sp.segments :+= seg
+                seg = Seq[KernelInstance]()
+            }
+            
             seg :+= k
             kernelToSegment += (k -> seg)
         }
