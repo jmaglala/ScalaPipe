@@ -28,7 +28,7 @@ private[scalapipe] class SegCacheMapper(
     private[this] def create_segments()
     {
         var seg = Seq[KernelInstance]()
-        var mid: Int = seg.length / 2
+        var mid: Int = sp.instances.length / 2
         // Put everything into one segment
         var i: Int = 0
         for (k <- sp.instances) 
@@ -36,9 +36,8 @@ private[scalapipe] class SegCacheMapper(
             seg :+= k
             kernelToSegment += (k -> seg)
 	    
-            if (i == mid)
+            if (i <= mid)
             {
-	    
                 sp.segments :+= seg
                 seg = Seq[KernelInstance]()
             }
