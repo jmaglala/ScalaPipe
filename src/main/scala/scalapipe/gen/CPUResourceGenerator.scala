@@ -716,7 +716,7 @@ private[scalapipe] class CPUResourceGenerator(
 		    write(s"case ${id}:")
 		    enter
 		      //If it has fired the requested total and the output buffer < the next kernel's required input then end
-		      write(s"if (fireCount == total && ${cpuInstances(id+1).name}_get_available(0) < kernel${id+1}_in_rate)");
+		      write(s"if (fireCount == total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
 		      write("{");
 		      enter
 			write("inputEmpty = true;");
@@ -732,7 +732,7 @@ private[scalapipe] class CPUResourceGenerator(
 		      leave
 		      write("}");
 		      //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-		      write(s"if ((${cpuInstances(id+1).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size)");
+		      write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size)");
 		      write("{");
 		      enter
 			write("fireKernelNum++;");
@@ -774,7 +774,7 @@ private[scalapipe] class CPUResourceGenerator(
 		  write(s"case ${id}:")
 		  enter
 		    //If 
-		    write(s"if ((${cpuInstances(id+1).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size || ((${kernel.label}_get_available(0) < ${kernel.name}_in_rate) && ${cpuInstances(id+1).label}_get_available(0) > ${cpuInstances(id+1).name}_in_rate))")
+		    write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size || ((${kernel.label}_get_available(0) < ${kernel.name}_in_rate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).name}_in_rate))")
 		    write("{")
 		    enter
 		      write("fireKernelNum++;")
