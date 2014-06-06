@@ -12,8 +12,8 @@ private[scalapipe] class SegCacheMapper(
     private[this] def min_buff(s: Stream): Int =
     {
         // We'll just use the max of the two's rates
-        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate + 1
-        val destRate: Int   = s.destKernel.kernel.inputs(0).rate + 1
+        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
+        val destRate: Int   = s.destKernel.kernel.inputs(0).rate
         
         if (sourceRate > destRate)
         {
