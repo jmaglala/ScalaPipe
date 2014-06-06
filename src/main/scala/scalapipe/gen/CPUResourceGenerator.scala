@@ -668,7 +668,7 @@ private[scalapipe] class CPUResourceGenerator(
 		  write(s"int ${name}_out_rate = ${outputRate};");
 		  
 		  val bufferSize = kernel.getOutputs(0).parameters.get[Int]('queueDepth)
-		  write(s"int ${name}_out_buf_size = ${bufferSize-1};");
+		  write(s"int ${name}_out_buf_size = ${bufferSize};");
 		}
 		if (kernel.index != segment.head.index) {
 		  val inputRate = kernel.kernel.inputs(0).rate;
@@ -833,6 +833,8 @@ private[scalapipe] class CPUResourceGenerator(
 		  seg_out_rate *= kernel.kernel.outputs(0).rate
 		}
 	      }
+	      val bufferSize = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)
+	      write(s"int segment${segNumber}_out_buf_size = ${bufferSize};");
 	      write(s"double segment${segNumber}_out_rate = ${seg_out_rate};")
 	    }
 	    else {
@@ -852,11 +854,22 @@ private[scalapipe] class CPUResourceGenerator(
 	      leave
 	      write("}")
 	    }
-	    if (segment.last.kernel.outputs.length != 0)
+	    if (segment.last.kernel.outputs.length != 0 && segment == sp.segments.head)
 	    {
-	      val bufferSize = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)
-	      write(s"int segment${segNumber}_out_buf_size = ${bufferSize-1};");
+	      //val bufferSize = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)
+	      //write(s"int segment${segNumber}_out_buf_size = ${bufferSize};");
 	      write(s"if (instance${segment.last.index+1}_get_available(0) + segment${segNumber}_out_rate > segment${segNumber}_out_buf_size)")
+	      write("{")
+	      enter
+		write("return false;")
+	      leave
+	      write("}")
+	    }
+	    else if (segment.last.kernel.outputs.length != 0)
+	    {
+	      //val bufferSize = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)
+	      //write(s"int segment${segNumber}_out_buf_size = ${bufferSize};");
+	      write(s"if ((instance${segment.last.index+1}_get_available(0) + segment${segNumber}_out_rate > segment${segNumber}_out_buf_size) || instance${segment.last.index+1}_get_available(0) > segment${segNumber}_out_buf_size/2)")
 	      write("{")
 	      enter
 		write("return false;")
@@ -928,15 +941,15 @@ private[scalapipe] class CPUResourceGenerator(
 		//If writing out code for the last kernel
 		else {
 		  //write(s"case ${iteration}:")
-		    //If the input buffer < this kernel's input rate, move back a kernel
-		    write(s"if (segment${iteration}_is_fireable())")
-		    write("{")
-		    enter
-		      write(s"fire_segment${iteration}();")
-		      write("continue;")
-		    leave
-		    write("}")
-		    //write("break;")
+		  //If the input buffer < this kernel's input rate, move back a kernel
+		  write(s"if (segment${iteration}_is_fireable())")
+		  write("{")
+		  enter
+		    write(s"fire_segment${iteration}();")
+		    write("continue;")
+		  leave
+		  write("}")
+		  //write("break;")
 		}
 	      }
 	    leave
