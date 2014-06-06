@@ -139,10 +139,10 @@ private[scalapipe] class CKernelGenerator(
         // Generate the code.
         val nodeEmitter = new CKernelNodeEmitter(kt, timing)
         nodeEmitter.emit(kt.expression)
-        write(s"for(;;)")
-        enter
+        //write(s"for(;;)")
+        //enter
         write(nodeEmitter)
-        leave
+        //leave
         leave
 
     }
