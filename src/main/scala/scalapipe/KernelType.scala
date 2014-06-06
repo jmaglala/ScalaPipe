@@ -1,6 +1,7 @@
 package scalapipe
 
 import scalapipe.dsl._
+import scala.collection.mutable.ListBuffer
 
 private[scalapipe] abstract class KernelType(
         val sp: ScalaPipe,
@@ -17,6 +18,7 @@ private[scalapipe] abstract class KernelType(
     private[scalapipe] val label = LabelMaker.getTypeLabel
     private[scalapipe] val inputs = symbols.inputs
     private[scalapipe] val outputs = symbols.outputs
+    private[scalapipe] val verbatims = ListBuffer[String]()
 
     def this(sp: ScalaPipe, kernel: Kernel, p: Platforms.Value) = {
         this(sp, kernel.name, new SymbolTable(kernel), p)
@@ -33,6 +35,9 @@ private[scalapipe] abstract class KernelType(
         kernel.states.foreach { s =>
             val lit = Literal.get(s.init, kernel)
             symbols.addState(s.name, s.valueType, lit)
+        }
+        kernel.verbatims.foreach{ s=>
+            verbatims += s
         }
         dependencies.add(kernel.dependencies)
     }

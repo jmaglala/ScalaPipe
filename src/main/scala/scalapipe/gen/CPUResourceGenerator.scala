@@ -681,7 +681,8 @@ private[scalapipe] class CPUResourceGenerator(
 	    if (segment.head == segment.last)
 	    {
 	      val id = segment.head.index
-	      write(s"sp_kernel${id}_run(&instance${id}.priv);")
+	      
+	      write(s"sp_${segment.head.name}_run(&${segment.head.label}.priv);")
 	    }
 	    else {
 	    //Write run_thread variables
@@ -715,7 +716,7 @@ private[scalapipe] class CPUResourceGenerator(
 		    write(s"case ${id}:")
 		    enter
 		      //If it has fired the requested total and the output buffer < the next kernel's required input then end
-		      write(s"if (fireCount == total && instance${id+1}_get_available(0) < kernel${id+1}_in_rate)");
+		      write(s"if (fireCount == total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
 		      write("{");
 		      enter
 			write("inputEmpty = true;");
@@ -731,7 +732,7 @@ private[scalapipe] class CPUResourceGenerator(
 		      leave
 		      write("}");
 		      //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-		      write(s"if ((instance${id+1}_get_available(0) + kernel${id}_out_rate) > kernel${id}_out_buf_size)");
+		      write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size)");
 		      write("{");
 		      enter
 			write("fireKernelNum++;");
@@ -742,7 +743,7 @@ private[scalapipe] class CPUResourceGenerator(
 		      write("{")
 		      enter
 			write("fireCount++;")
-			write(s"sp_kernel${id}_run(&instance${id}.priv);")
+			write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
 		      leave
 		      write("}")
 		      write("break;")
@@ -753,7 +754,7 @@ private[scalapipe] class CPUResourceGenerator(
 		    write(s"case ${id}:")
 		      enter
 			//If the input buffer < this kernel's input rate, move back a kernel
-			write(s"if (instance${id}_get_available(0) < kernel${id}_in_rate)")
+			write(s"if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
 			write("{")
 			enter
 			write("fireKernelNum--;")
@@ -763,7 +764,7 @@ private[scalapipe] class CPUResourceGenerator(
 			write("else")
 			write("{")
 			enter
-			  write(s"sp_kernel${id}_run(&instance${id}.priv);")
+			  write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
 			leave
 			write("}")
 			write("break;")
@@ -773,13 +774,13 @@ private[scalapipe] class CPUResourceGenerator(
 		  write(s"case ${id}:")
 		  enter
 		    //If 
-		    write(s"if ((instance${id+1}_get_available(0) + kernel${id}_out_rate) > kernel${id}_out_buf_size || ((instance${id}_get_available(0) < kernel${id}_in_rate) && instance${id+1}_get_available(0) > kernel${id+1}_in_rate))")
+		    write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size || ((${kernel.label}_get_available(0) < ${kernel.name}_in_rate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).name}_in_rate))")
 		    write("{")
 		    enter
 		      write("fireKernelNum++;")
 		    leave
 		    write("}")
-		    write(s"else if (instance${id}_get_available(0) < kernel${id}_in_rate)")
+		    write(s"else if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
 		    write("{")
 		    enter
 		      write("fireKernelNum--;")
@@ -788,7 +789,7 @@ private[scalapipe] class CPUResourceGenerator(
 		    write("else")
 		    write("{")
 		    enter
-		      write(s"sp_kernel${id}_run(&instance${id}.priv);")
+		      write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
 		    leave
 		    write("}")
 		    write("break;")
