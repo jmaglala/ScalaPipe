@@ -18,6 +18,7 @@ class Kernel(val name: String) extends LowPriorityImplicits with DebugInfo {
     private[scalapipe] val externals = new ListBuffer[Platforms.Value]
     private[scalapipe] val dependencies = new DependencySet
     private[scalapipe] val scopeStack = new ListBuffer[scalapipe.Scope]
+    private[scalapipe] val verbatims = new ListBuffer[String]
 
     def this() = this(LabelMaker.getKernelLabel)
 
@@ -45,7 +46,9 @@ class Kernel(val name: String) extends LowPriorityImplicits with DebugInfo {
         outputs += new KernelOutput(label, vt, rate)
         node
     }
-
+    def verbatim(s : String) {
+        verbatims += s
+    }
     def input(t: Type, n: Symbol = null, rate: Int = 1): Variable = {
         val vt = t.create
         DSLHelper.ifThen(!vt.flat, Error.raise("input port too wide", this))
