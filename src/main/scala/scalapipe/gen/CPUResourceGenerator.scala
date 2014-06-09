@@ -921,6 +921,9 @@ private[scalapipe] class CPUResourceGenerator(
         
         //RUN_THREAD()--------------------------------
         //Write a thead to run all the segments
+        
+        val cacheSize = sp.parameters.get[Int]('cache)
+        println(cacheSize)
         write(s"static void *run_thread1(void *arg)")
 	    write(s"{")
 	    enter
@@ -947,15 +950,30 @@ private[scalapipe] class CPUResourceGenerator(
 	      write("std::cout << std::endl;")
 	      //Write if statements to test if each segment is fireable and fire accordingly.
 	      for (iteration <- sp.segments.length to 1 by -1) {
+		var seg_out_rate: Double = 1
+		for (kernel <- sp.segments(iteration-1)) {
+		    if (kernel.kernel.outputs.length != 0 && kernel.kernel.inputs.length != 0){
+		      seg_out_rate /= kernel.kernel.inputs(0).rate
+		      seg_out_rate *= kernel.kernel.outputs(0).rate
+		    }
+		    else if (kernel.kernel.inputs.length == 0 && kernel.kernel.outputs.length != 0) {
+		      seg_out_rate *= (kernel.kernel.outputs(0).rate)
+		    }
+		    else if (kernel.kernel.outputs.length == 0 && kernel.kernel.inputs.length != 0) {
+		      seg_out_rate *= (1/kernel.kernel.inputs(0).rate)
+		    }
+		  }
 		//If writing out code for first kernel
 		if (iteration == 1)
 		{
+		  //For each kernel in the segment, modify the seg_out_rate appropriately  
+		  val typeSize = sp.segments(iteration-1).last.kernel.outputs.head.valueType.bytes
 		  //If the first sigment is fireable and hasn't been fired the requested total # of times, then fire
 		  write(s"if (segment${iteration}_is_fireable() && fireCount != total)");
 		  write("{");
 		  enter
 		    //Fire enough times to fill the output buffer
-		    val numOfIterations = sp.segments(iteration-1).last.getOutputs(0).parameters.get[Int]('queueDepth)/sp.segments(iteration-1).last.kernel.outputs(0).rate
+		    val numOfIterations = (cacheSize/typeSize)/seg_out_rate
 		    write(s"for (int i = 0; i< ${numOfIterations}; i++)")
 		    write("{")
 		    enter
@@ -973,22 +991,25 @@ private[scalapipe] class CPUResourceGenerator(
 		  leave
 		  write("}");
 		}
-		//Otherwise it is a middle kernel, just test if it is fireable and either 
+		//Otherwise it is a middle or end kernel, just test if it is fireable and either 
 		else {
 		  //If the segment is fireable, fire it
 		  write(s"if (segment${iteration}_is_fireable())")
 		  write("{")
 		  enter
 		    //Find how many times to fire the segment
-		    var numOfIterations = 0
-		    val segmentInRate = sp.segments(iteration-1).head.getInputs(0).parameters.get[Int]('queueDepth)/sp.segments(iteration-1).head.kernel.inputs(0).rate
+		    var numOfIterations: Double = 0
 		    if (iteration == sp.segments.length)
 		    {
+		      val segmentInRate = (cacheSize/(sp.segments(iteration-1).head.kernel.inputs.head.valueType.bytes))/sp.segments(iteration-1).head.kernel.inputs(0).rate
 		      numOfIterations = segmentInRate
 		    }
 		    else
 		    {
-		      val segmentOutRate = sp.segments(iteration-1).last.getOutputs(0).parameters.get[Int]('queueDepth)/sp.segments(iteration-1).last.kernel.outputs(0).rate
+		      println("segOutPrint")
+		      val segmentOutRate: Double = (cacheSize/(sp.segments(iteration-1).last.kernel.outputs.head.valueType.bytes))/seg_out_rate
+		      val segmentInRate: Double = (cacheSize/(sp.segments(iteration-1).head.kernel.inputs.head.valueType.bytes))/sp.segments(iteration-1).head.kernel.inputs(0).rate
+		      println("After")
 		      numOfIterations = math.min(segmentInRate, segmentOutRate)
 		    }
 		    //Fire it enough times to empty the input buffer or fill the output buffer
