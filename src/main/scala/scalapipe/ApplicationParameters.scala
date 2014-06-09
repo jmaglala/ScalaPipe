@@ -23,7 +23,8 @@ private[scalapipe] class ApplicationParameters extends Parameters {
     add('bram, true)            // Set to use block RAM for memories.
     add('dramAddrWidth, 27)     // DRAM address width.
     add('dramDataWidth, 128)    // DRAM data width.
-    add('sched, "SegCache")     // Scheduler type
+    add('sched, "EvenSeg")     // Scheduler type
+    add('schedparam, 1)         // A parameter for the scheduler
     add('cores, 1)              // The number of cores to use
     add('baseAffinity, 8)       // The starting core id to use
     add('iterations, 0)         // The number of times the first kernel will issue

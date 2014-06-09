@@ -478,6 +478,9 @@ private[scalapipe] class ScalaPipe {
         val map = parameters.get[String]('sched)
         var mapper: Mapper = {
             map match {
+                case "EvenSeg" =>
+                    val m = new EvenSegMapper(this)
+                    m
                 case "SegCache" =>
                     val m = new SegCacheMapper(this)
                     m

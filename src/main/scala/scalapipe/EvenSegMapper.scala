@@ -2,7 +2,7 @@ package scalapipe
 
 import scala.math
 
-private[scalapipe] class SegCacheMapper(
+private[scalapipe] class EvenSegMapper(
     val _sp: ScalaPipe
 ) extends Mapper(_sp)
 {
@@ -39,13 +39,13 @@ private[scalapipe] class SegCacheMapper(
             seg :+= k
             kernelToSegment += (k -> seg)
 	    
-            if (i % size == 0)
+            i += 1
+            if (i > 0 && i % size == 0)
             {
                 sp.segments :+= seg
                 seg = Seq[KernelInstance]()
             }
 
-            i += 1
         }
         if (seg.length > 0) sp.segments :+= seg
         for (segment <- sp.segments)
