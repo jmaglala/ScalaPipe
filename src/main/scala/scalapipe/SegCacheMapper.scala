@@ -25,6 +25,7 @@ private[scalapipe] class SegCacheMapper(
         }
     }
     
+    // Greedily Creates segments of size at most M
     private[this] def create_segments()
     {
         var seg = Seq[KernelInstance]()
@@ -54,32 +55,37 @@ private[scalapipe] class SegCacheMapper(
         }
         sp.segments.foreach(println)
     }
-    
-    private[this] def assign_buffers()
+
+    // Assigns the minimum buffers to all edges
+    private[this] def assign_min_buffers()
     {
-        // Internal steams (connect kernels on the same segment)
-        val internalStreams = sp.streams.filter(s =>(kernelToSegment(s.sourceKernel) == kernelToSegment(s.destKernel) ))
-        for (s <- internalStreams)
+        for (s <- sp.streams)
         {
-            // Set the internal edges to minimum buffers
-            val minbuff: Int = min_buff(s)
-            s.parameters.set('queueDepth, minbuff)
+            s.parameters.set('queueDepth, min_buff(s))
         }
+    }
         
+    // Increases cross-edge buffers to M
+    private[this] def assign_cross_buffers()
+    {
         // For now, we'll assum 1:1 and do everything at once
         val totalIterations = sp.parameters.get[Int]('iterations)
+        val cacheSize = sp.parameters.get[Int]('cache)
 
         // Cross streams (connect kernels on different segments)
         val crossStreams = sp.streams.filter(s =>(kernelToSegment(s.sourceKernel) != kernelToSegment(s.destKernel) ))
         for (s <- crossStreams)
         {
-            s.parameters.set('queueDepth, totalIterations)    
+            val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
+            val count = cacheSize / bytes
+            s.parameters.set('queueDepth, bytes)    
         }
     }
     
     def map() 
     {
+        assign_min_buffers()
         create_segments()
-        assign_buffers()
+        assign_cross_buffers()
     }
 }
