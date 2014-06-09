@@ -80,7 +80,8 @@ private[scalapipe] class EvenSegMapper(
         {
             val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
             val count = cacheSize / bytes
-            s.parameters.set('queueDepth, bytes)    
+            println(count)
+            s.parameters.set('queueDepth, count)    
         }
     }
     

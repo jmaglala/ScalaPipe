@@ -80,7 +80,7 @@ private[scalapipe] class SegCacheMapper(
         {
             val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
             val count = cacheSize / bytes
-            s.parameters.set('queueDepth, bytes)    
+            s.parameters.set('queueDepth, count)    
         }
     }
     
