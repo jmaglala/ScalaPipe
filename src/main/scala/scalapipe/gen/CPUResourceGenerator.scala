@@ -124,7 +124,7 @@ private[scalapipe] class CPUResourceGenerator(
     private def emitKernelInit(kernel: KernelInstance) {
 
         val instance = kernel.label
-
+        val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value
         // Default config options.
         // These are initialized here to allow overrides from
         // the command line.
@@ -148,8 +148,9 @@ private[scalapipe] class CPUResourceGenerator(
         // initialized before any producer threads start.
         val inPortCount = kernel.getInputs.size
         write(s"$instance.active_inputs = $inPortCount;")
-
-        // The rest is initialized in the thread.
+        // We're allocated kernel state inside the kernel, this should get set by the segment but we can do it later'
+        write(s"$instance.data.state =(uint8_t*) malloc(${state} * sizeof(uint8_t));")
+        
 
     }
 
@@ -253,6 +254,24 @@ private[scalapipe] class CPUResourceGenerator(
 
     }
 
+    private def emitKernelLoad(kernel: KernelInstance) {
+        val instance = kernel.label
+        val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value
+        
+        write(s"static void ${instance}_load()")
+        write(s"{")
+        enter
+        write(s"volatile uint32_t curr = 0;")
+        write(s"for (uint32_t i=0;i<${state};i++)")
+        write(s"{")
+        enter
+        write(s"curr += ${instance}.data.state[i];")
+        leave
+        write(s"}")
+        leave
+        write(s"}")
+    }
+    
     private def emitKernelAvailable(kernel: KernelInstance) {
 
         val instance = kernel.label
@@ -281,6 +300,8 @@ private[scalapipe] class CPUResourceGenerator(
 
     }
 
+    
+    
     private def emitKernelRead(kernel: KernelInstance) {
 
         val instance = kernel.label
@@ -355,6 +376,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"}")
         write(s"spc_start(&$instance.clock);")
         leave
+        //write(s"free($instance.data.state);")
         write(s"}")
 
     }
@@ -624,6 +646,7 @@ private[scalapipe] class CPUResourceGenerator(
             emitKernelSend,
             emitKernelAvailable,
             emitKernelRead,
+            emitKernelLoad,
             emitKernelRelease
             //emitThread
         )
@@ -645,6 +668,7 @@ private[scalapipe] class CPUResourceGenerator(
 		  write(s"${instance}.data.get_available = ${instance}_get_available;")
 		  write(s"${instance}.data.read_value = ${instance}_read_value;")
 		  write(s"${instance}.data.release = ${instance}_release;")
+		  write(s"${instance}.data.load = ${instance}_load;")
 		  write(s"sp_${name}_init(&${instance}.priv);");
 		  emitKernelInit(kernel)
 		leave
@@ -675,7 +699,8 @@ private[scalapipe] class CPUResourceGenerator(
 		  write(s"int ${name}_in_rate = ${inputRate};");
 		}
 
-		
+		// Load the kernel
+		write(s"${instance}_load();")
 	    }
 	    
 	    if (segment.head == segment.last)

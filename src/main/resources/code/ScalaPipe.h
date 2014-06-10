@@ -59,7 +59,7 @@ static inline void sp_decrement(volatile uint32_t *v)
 }
 
 /** Structure to represent the per-instance fields for a kernel.
- * This should align to 8 bytes.
+ * This should (no longer )align[s] to 8 bytes. added a pointer
  */
 typedef struct {
 
@@ -70,6 +70,8 @@ typedef struct {
     int   (*get_available)(int in_port);
     void *(*read_value)(int in_port);
     void  (*release)(int in_port);
+    void  (*load)();
+    uint8_t * state;
 
     int in_port_count;
     int out_port_count;
