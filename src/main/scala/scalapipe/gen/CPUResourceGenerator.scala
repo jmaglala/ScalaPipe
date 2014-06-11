@@ -471,15 +471,9 @@ private[scalapipe] class CPUResourceGenerator(
     }
 
     // Segment Functions
-    private def emitSegmentFieable(segment: Seq[KernelInstance], segId: Int) {
-        // Get devices on this host.
-        val localInstances = sp.instances.filter { instance =>
-            instance.device != null && instance.device.host == host
-        }
-        val cpuInstances = localInstances.filter { instance =>
-            shouldEmit(instance.device)
-        }
-        
+    private def emitSegmentFieable(spsegment: SPSegment) {
+        val segment = spsegment.kernels
+        val segId = spsegment.id
         write(s"bool segment${segId}_is_fireable()")
         write("{")
         enter
@@ -512,10 +506,6 @@ private[scalapipe] class CPUResourceGenerator(
         else {
             write(s"double segment${segId}_out_rate = 0;")
         }
-        
-        //val name = kernel.name //kernel#
-        //val instance = kernel.label //instance#
-        //val id = kernel.index //#
         
         if (segment.head.kernel.inputs.length != 0)
         {
@@ -553,8 +543,10 @@ private[scalapipe] class CPUResourceGenerator(
         write("}")
     }
     
-    private def emitSegmentFire(segment: Seq[KernelInstance], segId: Int) {
+    private def emitSegmentFire(spsegment: SPSegment) {
         // Get devices on this host.
+        val segId = spsegment.id
+        val segment = spsegment.kernels
         val localInstances = sp.instances.filter { instance =>
             instance.device != null && instance.device.host == host
         }
@@ -715,7 +707,9 @@ private[scalapipe] class CPUResourceGenerator(
     
     private def emitThread(tid: Int)
     {
-        write(s"static void *run_thread1(void *arg)")
+        val thread_segments = sp.segments.filter(seg => seg.tid == tid)
+    
+        write(s"static void *run_thread${tid}(void *arg)")
         write(s"{")
         enter
         
@@ -731,17 +725,20 @@ private[scalapipe] class CPUResourceGenerator(
         write("while (inputEmpty == false)");
         write("{");
         enter
-            for (iteration <- sp.segments.length to 1 by -1) 
+        
+            // Select the segments from this thread's list
+            for (segment <- thread_segments.reverse) 
             {
+                val segId = segment.id
                 //If writing out code for first kernel
-                if (iteration == 1)
+                if (segId == 1)
                 {
                     //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                    write(s"if (segment${iteration}_is_fireable() && fireCount != total)");
+                    write(s"if (segment${segId}_is_fireable() && fireCount != total)");
                     write("{");
                     enter
                     write("fireCount++;")
-                    write(s"fire_segment${iteration}();")
+                    write(s"fire_segment${segId}();")
                     leave
                     write("}");
                     
@@ -757,10 +754,10 @@ private[scalapipe] class CPUResourceGenerator(
                 else 
                 {
                     //If the input buffer < this kernel's input rate, move back a kernel
-                    write(s"if (segment${iteration}_is_fireable())")
+                    write(s"if (segment${segId}_is_fireable())")
                     write("{")
                     enter
-                    write(s"fire_segment${iteration}();")
+                    write(s"fire_segment${segId}();")
                     write("continue;")
                     leave
                     write("}")    
@@ -783,8 +780,8 @@ private[scalapipe] class CPUResourceGenerator(
         }
         
         //threadIds ++= cpuInstances.zipWithIndex // This sets thread per kernel
-        //val threadIds = sp.parameters.get[String]('cores) // thread per core
-        val threadIds = 1 // Only using one thread
+        val threadIds = sp.parameters.get[Int]('cores) -1// thread per core
+        //val threadIds = 0 // Only using one thread
         
         // Write include files that we need.
         write("#include \"ScalaPipe.h\"")
@@ -877,16 +874,14 @@ private[scalapipe] class CPUResourceGenerator(
         }
         
         // Write the segment functions
-        var segId = 1
         for (segment <- sp.segments)
         {
-            emitSegmentFieable(segment,segId)
-            emitSegmentFire(segment,segId)
-            segId += 1
+            emitSegmentFieable(segment)
+            emitSegmentFire(segment)
         }
         
         // Thread functions
-        for (t <- 1 to threadIds) {
+        for (t <- 0 to threadIds) {
             emitThread(t)
         }
         // Create the "get_arg" function.
@@ -898,7 +893,7 @@ private[scalapipe] class CPUResourceGenerator(
         enter
 
         // Declare threads.
-        for (t <- 1 to threadIds) {
+        for (t <- 0 to threadIds) {
             write(s"pthread_t thread$t;")
         }
 
@@ -947,10 +942,10 @@ private[scalapipe] class CPUResourceGenerator(
         write("atexit(showStats);")
 
         // Start the threads.
-        for (t <- 1 to threadIds) {
+        for (t <- 0 to threadIds) {
             write(s"pthread_create(&thread$t, NULL, &run_thread$t, NULL);")
         }
-        for (t <- 1 to threadIds) {
+        for (t <- 0 to threadIds) {
             write(s"pthread_join(thread$t, NULL);")
         }
 
