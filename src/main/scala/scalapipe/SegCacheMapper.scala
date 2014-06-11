@@ -124,6 +124,7 @@ private[scalapipe] class SegCacheMapper(
             for (kernIndex <- startKern to endKern) {
                 segment :+= modules(kernIndex)
             }
+            segid += 1
             var sps = new SPSegment(segid)
             sps.kernels = segment
             sp.segments :+= sps
@@ -131,9 +132,9 @@ private[scalapipe] class SegCacheMapper(
         for (segment <- sp.segments) {
             for(k <- segment.kernels)
                 {
-                    kernelToSegment += (k -> segment)
+                    kernelToSPSegment += (k -> segment)
                 }
-            segment.foreach(println)
+            //segment.foreach(println)
             println()
         }
     }
@@ -162,9 +163,8 @@ private[scalapipe] class SegCacheMapper(
         {
             val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
             val count = cacheSize / bytes
-            s.parameters.set('queueDepth, bytes)    
+            s.parameters.set('queueDepth, count)    
         }
-        println("4")
     }
 
     def map() 
