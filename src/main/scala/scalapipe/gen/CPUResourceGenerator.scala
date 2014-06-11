@@ -3,6 +3,8 @@ package scalapipe.gen
 import scalapipe._
 import scalapipe.dsl._
 
+import scala.math
+
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.ListBuffer
@@ -556,7 +558,7 @@ private[scalapipe] class CPUResourceGenerator(
         
         write(s"static void fire_segment${segId}()")
         write(s"{")
-        enter
+        enter 
         //Write kernel inits and rates
         for (kernel <- segment) {
             //getScheduleGenerator.emitThread(t)
@@ -564,7 +566,7 @@ private[scalapipe] class CPUResourceGenerator(
             val instance = kernel.label //instance#
             val id = kernel.index //#
             if (kernel.index != segment.last.index) {
-                val outputRate = kernel.kernel.outputs(0).rate;
+                val outputRate = kernel.kernel.outputs(0).rate.toInt;
                 write(s"int ${name}_out_rate = ${outputRate};");
                 
                 val bufferSize = kernel.getOutputs(0).parameters.get[Int]('queueDepth)
@@ -574,8 +576,6 @@ private[scalapipe] class CPUResourceGenerator(
                 val inputRate = kernel.kernel.inputs(0).rate;
                 write(s"int ${name}_in_rate = ${inputRate};");
             }
-
-            
         }
         
         if (segment.head == segment.last)
@@ -609,13 +609,16 @@ private[scalapipe] class CPUResourceGenerator(
                 val name = kernel.name //kernel#
                 val instance = kernel.label //instance#
                 val id = kernel.index //#
+                
+                
+                
                 //If writing out code for first kernel
                 if (id == segment.head.index)
                 {
                 write(s"case ${id}:")
                 enter
                     //If it has fired the requested total and the output buffer < the next kernel's required input then end
-                    write(s"if (fireCount == total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
+                    write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
                     write("{");
                     enter
                     write("inputEmpty = true;");
@@ -623,7 +626,7 @@ private[scalapipe] class CPUResourceGenerator(
                     leave
                     write("}");
                     //If it has fired the requested total then move onto the next kernel
-                    write("else if (fireCount == total)");
+                    write("else if (fireCount >= total)");
                     write("{");
                     enter
                     write("fireKernelNum++;");
@@ -634,15 +637,14 @@ private[scalapipe] class CPUResourceGenerator(
                     write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size)");
                     write("{");
                     enter
-                    write("fireKernelNum++;");
+                        write("fireKernelNum++;");
                     leave
                     write("}");
                     //Otherwise fire kernel and increment fireCount
                     write("else")
                     write("{")
-                    enter
-                    write("fireCount++;")
-                    write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
+                        write("fireCount++;")
+                        write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
                     leave
                     write("}")
                     write("break;")
@@ -687,7 +689,6 @@ private[scalapipe] class CPUResourceGenerator(
                 write("}")
                 write("else")
                 write("{")
-                enter
                     write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
                 leave
                 write("}")
@@ -730,20 +731,63 @@ private[scalapipe] class CPUResourceGenerator(
             for (segment <- thread_segments.reverse) 
             {
                 val segId = segment.id
+                
+                var segmentFireIterations = -1
+                
+                //Calculates max fires based on gain and output buffer size
+                var maxOutputFires = 1
+                for (kernel <- segment.kernels) {
+                    if (kernel != segment.kernels.head) {
+                        maxOutputFires = maxOutputFires / kernel.kernel.inputs(0).rate
+                    }
+                    if (kernel.kernel.outputs.length != 0) {
+                        maxOutputFires = maxOutputFires * kernel.kernel.outputs(0).rate
+                    }
+                    else {
+                        maxOutputFires = -1
+                    }
+                }
+                //If the segment has outputs, finish calculating max # of firing iterations
+                if (maxOutputFires != -1) {
+                    maxOutputFires = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)/maxOutputFires
+                }
+                
+                //Calculate max # of firing iterations if the segment has inputs
+                var maxInputFires = -1
+                if (segment.kernels.head.kernel.inputs.length != 0) {
+                    maxInputFires = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)/segment.kernels.head.kernel.inputs(0).rate
+                }
+                
+                if (maxInputFires == -1) {
+                    segmentFireIterations = maxOutputFires
+                }
+                else if (maxOutputFires == -1) {
+                    segmentFireIterations = maxInputFires
+                }
+                else {
+                    segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
+                }
+                
+                println(segId + " " + segmentFireIterations + " " + maxInputFires + " " + maxOutputFires)
+                
                 //If writing out code for first kernel
                 if (segId == 1)
                 {
                     //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                    write(s"if (segment${segId}_is_fireable() && fireCount != total)");
+                    write(s"if (segment${segId}_is_fireable() && fireCount < total)");
                     write("{");
                     enter
-                    write("fireCount++;")
-                    write(s"fire_segment${segId}();")
+                        write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
+                        enter
+                            write("fireCount++;")
+                            write(s"fire_segment${segId}();")
+                        write("}")
+                        leave
                     leave
                     write("}");
                     
                     //If it has fired the requested total and the output buffer < the next kernel's required input then end
-                    write(s"else if (fireCount == total)");
+                    write(s"else if (fireCount >= total)");
                     write("{");
                     enter
                     write("inputEmpty = true;");
@@ -757,8 +801,12 @@ private[scalapipe] class CPUResourceGenerator(
                     write(s"if (segment${segId}_is_fireable())")
                     write("{")
                     enter
-                    write(s"fire_segment${segId}();")
-                    write("continue;")
+                        write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
+                        enter
+                            write(s"fire_segment${segId}();")
+                            write("}")
+                        write("continue;")
+                        leave
                     leave
                     write("}")    
                 }
