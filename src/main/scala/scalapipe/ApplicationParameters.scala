@@ -26,7 +26,7 @@ private[scalapipe] class ApplicationParameters extends Parameters {
     add('sched, "SegCache")     // Scheduler type
     add('schedparam, 1)         // A parameter for the scheduler
     add('cores, 1)              // The number of cores to use
-    add('baseAffinity, 8)       // The starting core id to use
+    add('basecpu, 8)       // The starting core id to use
     add('iterations, 0)         // The number of times the first kernel will issue
     add('cache, 1024*256)       // The size of the l2 cache in B
     

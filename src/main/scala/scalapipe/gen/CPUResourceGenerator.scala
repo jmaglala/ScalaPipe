@@ -296,7 +296,6 @@ private[scalapipe] class CPUResourceGenerator(
     private def emitKernelRead(kernel: KernelInstance) {
 
         val instance = kernel.label
-
         write(s"static void *${instance}_read_value(int in_port)")
         write(s"{")
         enter
@@ -682,11 +681,13 @@ private[scalapipe] class CPUResourceGenerator(
     private def emitThread(tid: Int)
     {
         val thread_segments = sp.segments.filter(seg => seg.tid == tid)
-    
+        val cpu = sp.parametets.get[Int]('basecpu) + tid
         write(s"static void *run_thread${tid}(void *arg)")
         write(s"{")
         enter
         
+        //Affinity 
+        write(s"sp_set_affinity(${cpu});")
         //Write run_thread variables
         write("int fireCount = 0;");
         write("bool inputEmpty = false;");
