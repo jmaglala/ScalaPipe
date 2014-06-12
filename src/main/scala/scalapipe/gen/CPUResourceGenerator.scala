@@ -681,7 +681,7 @@ private[scalapipe] class CPUResourceGenerator(
     private def emitThread(tid: Int)
     {
         val thread_segments = sp.segments.filter(seg => seg.tid == tid)
-        val cpu = sp.parametets.get[Int]('basecpu) + tid
+        val cpu = sp.parameters.get[Int]('basecpu) + tid
         write(s"static void *run_thread${tid}(void *arg)")
         write(s"{")
         enter
@@ -780,9 +780,11 @@ private[scalapipe] class CPUResourceGenerator(
                 write(s"if (segment${segId}_is_fireable() && fireCount < total)");
                 write("{");
                 enter
+                    write(s"std::cout << ${tid} << ' ' << ${segId} << std::endl;")
+                    write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
                     write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
                     enter
-                        write(s"std::cout << fireCount << std::endl;")
+                        //write(s"std::cout << fireCount << std::endl;")
                         write("fireCount++;")
                         write(s"fire_segment${segId}();")
                         write("}")
@@ -805,6 +807,7 @@ private[scalapipe] class CPUResourceGenerator(
                 write(s"if (segment${segId}_is_fireable())")
                 write("{")
                 enter
+                    write(s"std::cout << ${tid} << ' ' << ${segId} << std::endl;")
                     write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
                     enter
                         write(s"fire_segment${segId}();")
