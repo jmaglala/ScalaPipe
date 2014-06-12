@@ -5,6 +5,8 @@ import scala.math
 import scalapipe.dsl._
 import scalapipe.dsl.SPSegment
 
+// Helpers to dertmine cache size
+
 
 private[scalapipe] class SegCacheMapper(
     val _sp: ScalaPipe
@@ -12,6 +14,22 @@ private[scalapipe] class SegCacheMapper(
 {
     // kernel to segment map
     private var kernelToSPSegment = Map[KernelInstance,SPSegment]()
+    
+    private[this] def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
+    private[this] def lcm(a: Int, b: Int)=(a*b).abs/gcd(a,b)
+
+    private[this] def cross_buff(s: Stream): Int = 
+    {
+        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
+        val destRate: Int   = s.destKernel.kernel.inputs(0).rate
+        
+        // For now we're assuming the same size data... which is right?
+        val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
+        val cacheSize = sp.parameters.get[Int]('cache) / bytes
+        val t_lcm = lcm(sourceRate,destRate) 
+        if (cacheSize % t_lcm == 0) return cacheSize
+        else return ((cacheSize / t_lcm) + 1) * t_lcm
+    }
 
     private[this] def min_buff(s: Stream): Int =
     {
@@ -153,18 +171,12 @@ private[scalapipe] class SegCacheMapper(
     // Increases cross-edge buffers to M
     private[this] def assign_cross_buffers()
     {
-        println("1")
-        // For now, we'll assum 1:1 and do everything at once
-        val totalIterations = sp.parameters.get[Int]('iterations)
-        val cacheSize = sp.parameters.get[Int]('cache)
-        println("2")
         // Cross streams (connect kernels on different segments)
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
 
         for (s <- crossStreams)
         {
-            val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
-            val count = cacheSize / bytes
+            val count = cross_buff(s)
             s.parameters.set('queueDepth, count)    
         }
     }

@@ -479,14 +479,6 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"bool segment${segId}_is_fireable()")
         write("{")
         enter
-        //Get input rates
-        /*if (segment.head.kernel.inputs.length != 0)
-        {
-            write(s"int segment${segId}_in_rate = ${segment.head.kernel.inputs(0).rate};")
-        }
-        else {
-            write(s"int segment${segId}_in_rate = 0;")
-        }*/
         
         //Get output rates and output buffer sizes
         var segAmplification = 1
@@ -501,41 +493,6 @@ private[scalapipe] class CPUResourceGenerator(
                 segAmplification = -1
             }
         }
-        /*
-        //If the segment has outputs, finish calculating max # of firing iterations
-        if (maxOutputFires != -1) {
-            maxOutputFires = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)/maxOutputFires
-        }
-        
-        //Calculate max # of firing iterations if the segment has inputs
-        var maxInputFires = -1
-        if (segment.head.kernel.inputs.length != 0) {
-            maxInputFires = segment.head.getInputs(0).parameters.get[Int]('queueDepth)/segment.head.kernel.inputs(0).rate
-        }*/
-            
-            
-        /*if (segment.last.kernel.outputs.length != 0)
-        {
-            var seg_out_rate : Double = 1
-            for (kernel <- segment) {
-                if (kernel.index == segment.head.index) {
-                    seg_out_rate *= kernel.kernel.outputs(0).rate
-                }
-                else if (kernel.index == segment.last.index && kernel.kernel.inputs.length != 0) {
-                    seg_out_rate /= kernel.kernel.inputs(0).rate
-                }
-                else {
-                    seg_out_rate /= kernel.kernel.inputs(0).rate
-                    seg_out_rate *= kernel.kernel.outputs(0).rate
-                }
-            }
-            val bufferSize = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)
-            write(s"int segment${segId}_out_buf_size = ${bufferSize};");
-            write(s"double segment${segId}_out_rate = ${seg_out_rate};")
-        }
-        else {
-            write(s"double segment${segId}_out_rate = 0;")
-        }*/
         
         //If first kernel is true
         if (segment.head.kernel.inputs.length == 0)
@@ -592,7 +549,9 @@ private[scalapipe] class CPUResourceGenerator(
             val id = segment.head.index
             
             write(s"sp_${segment.head.name}_run(&${segment.head.label}.priv);")
+            leave
             write("}")
+            
             return
         }
         
@@ -741,92 +700,95 @@ private[scalapipe] class CPUResourceGenerator(
         write("{");
         enter
         
-            // Select the segments from this thread's list
-            for (segment <- thread_segments.reverse) 
-            {
-                val segId = segment.id
-                
-                var segmentFireIterations = -1
-                
-                //Calculates max fires based on gain and output buffer size
-                var maxOutputFires = 1
-                for (kernel <- segment.kernels) {
-                    if (kernel != segment.kernels.head) {
-                        maxOutputFires = maxOutputFires / kernel.kernel.inputs(0).rate
-                    }
-                    if (kernel.kernel.outputs.length != 0) {
-                        maxOutputFires = maxOutputFires * kernel.kernel.outputs(0).rate
-                    }
-                    else {
-                        maxOutputFires = -1
-                    }
+        // Select the segments from this thread's list
+        for (segment <- thread_segments.reverse) 
+        {
+            val segId = segment.id
+            
+            var segmentFireIterations : Double = -1
+            
+            //Calculates max fires based on gain and output buffer size
+            var maxOutputFires : Double = 1
+            
+            for (kernel <- segment.kernels) {
+                if (kernel != segment.kernels.head) {
+                    maxOutputFires = maxOutputFires / kernel.kernel.inputs(0).rate
                 }
-                //If the segment has outputs, finish calculating max # of firing iterations
-                if (maxOutputFires != -1) {
-                    maxOutputFires = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)/maxOutputFires
-                }
-                
-                //Calculate max # of firing iterations if the segment has inputs
-                var maxInputFires = -1
-                if (segment.kernels.head.kernel.inputs.length != 0) {
-                    maxInputFires = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)/segment.kernels.head.kernel.inputs(0).rate
-                }
-                
-                if (maxInputFires == -1) {
-                    segmentFireIterations = maxOutputFires
-                }
-                else if (maxOutputFires == -1) {
-                    segmentFireIterations = maxInputFires
+                if (kernel.kernel.outputs.length != 0) {
+                    maxOutputFires = maxOutputFires * kernel.kernel.outputs(0).rate
                 }
                 else {
-                    segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
+                    maxOutputFires = -1
                 }
-                
-                println(segId + " " + segmentFireIterations + " " + maxInputFires + " " + maxOutputFires)
-                
-                //If writing out code for first kernel
-                if (segId == 0)
-                {
-                    //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                    write(s"if (segment${segId}_is_fireable() && fireCount < total)");
-                    write("{");
-                    enter
-                        write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
-                        enter
-                            write("fireCount++;")
-                            write(s"fire_segment${segId}();")
-                        write("}")
-                        leave
-                    leave
-                    write("}");
-                    
-                    //If it has fired the requested total and the output buffer < the next kernel's required input then end
-                    write(s"else if (fireCount >= total)");
-                    write("{");
-                    enter
-                    write("inputEmpty = true;");
-                    leave
-                    write("}");  
-                }
-                //If writing out code for the last kernel
-                else 
-                {
-                    //If the input buffer < this kernel's input rate, move back a kernel
-                    write(s"if (segment${segId}_is_fireable())")
-                    write("{")
-                    enter
-                        write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
-                        enter
-                            write(s"fire_segment${segId}();")
-                            write("}")
-                        leave
-                        write("continue;")
-                    leave
-                    write("}")    
-                }
+                println(s"${kernel.name} : ${maxOutputFires}")
             }
-            leave
-            write("}")
+            
+            //If the segment has outputs, finish calculating max # of firing iterations
+            if (maxOutputFires != -1) {
+                maxOutputFires = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)/maxOutputFires
+            }
+            
+            //Calculate max # of firing iterations if the segment has inputs
+            var maxInputFires = -1
+            if (segment.kernels.head.kernel.inputs.length != 0) {
+                maxInputFires = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)/segment.kernels.head.kernel.inputs(0).rate
+            }
+            
+            if (maxInputFires == -1) {
+                segmentFireIterations = maxOutputFires
+            }
+            else if (maxOutputFires == -1) {
+                segmentFireIterations = maxInputFires
+            }
+            else {
+                segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
+            }
+            
+            println(segId + " " + segmentFireIterations + " " + maxInputFires + " " + maxOutputFires)
+            
+            //If writing out code for first kernel
+            if (segId == 0)
+            {
+                //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
+                write(s"if (segment${segId}_is_fireable() && fireCount < total)");
+                write("{");
+                enter
+                    write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
+                    enter
+                        write("fireCount++;")
+                        write(s"fire_segment${segId}();")
+                        write("}")
+                    leave
+                leave
+                write("}");
+                
+                //If it has fired the requested total and the output buffer < the next kernel's required input then end
+                write(s"else if (fireCount >= total)");
+                write("{");
+                enter
+                write("inputEmpty = true;");
+                leave
+                write("}");  
+            }
+            //If writing out code for the last kernel
+            else 
+            {
+                //If the input buffer < this kernel's input rate, move back a kernel
+                write(s"if (segment${segId}_is_fireable())")
+                write("{")
+                enter
+                    write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
+                    enter
+                        write(s"fire_segment${segId}();")
+                        write("}")
+                    leave
+                    write("continue;")
+                leave
+                write("}")    
+            }
+        }
+        leave
+        write("}")
         leave
         write("}")
     }
