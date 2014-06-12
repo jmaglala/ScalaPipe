@@ -780,7 +780,7 @@ private[scalapipe] class CPUResourceGenerator(
                 println(segId + " " + segmentFireIterations + " " + maxInputFires + " " + maxOutputFires)
                 
                 //If writing out code for first kernel
-                if (segId == 1)
+                if (segId == 0)
                 {
                     //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
                     write(s"if (segment${segId}_is_fireable() && fireCount < total)");
