@@ -36,7 +36,7 @@ private[scalapipe] class EvenSegMapper(
         segId += 1
         var seg = Seq[KernelInstance]()
         var size: Int = numSegs
-        //println(size)
+        println(size)
         // Put everything into one segment
         var i: Int = 0
         for (k <- sp.instances) 
@@ -84,7 +84,9 @@ private[scalapipe] class EvenSegMapper(
         // For now, we'll assum 1:1 and do everything at once
         val totalIterations = sp.parameters.get[Int]('iterations)
         val cacheSize = sp.parameters.get[Int]('cache)
-
+    
+        println(cacheSize)
+        
         // Cross streams (connect kernels on different segments)
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
         for (s <- crossStreams)

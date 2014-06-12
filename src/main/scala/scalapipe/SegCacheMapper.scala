@@ -73,39 +73,41 @@ private[scalapipe] class SegCacheMapper(
         var k = 0
         var min_c = 0
         for (i <- 0 to (modules.length-1)) {
-            if (i == 0) {
-            mod_sum(i) = mod_rates(i)
-            mod_ids(i) :+= i
+            if (i == 0) 
+            {
+                mod_sum(i) = mod_rates(i)
+                mod_ids(i) :+= i
             }
-            else {
-            k = i
-            min_c = mod_sum(k-1) + mod_rates(k)
-            for (j <- i-1 to 0 by -1) {
-                var t_size = 0
-                t_size = mod_size.slice(j,i+1).sum
-                var mod_start = modules(j)
-                var mod_end = modules(i)
-                t_size += edge_size.slice(i,j+1).sum
-                if (t_size <= cacheSize) {
-                    println("j: " + j)
-                    var t_cost = mod_rates(i)
-                    if (j-1 >= 0) {
-                        t_cost = mod_sum(j-1) + mod_rates(i)
-                    }
-                    if (t_cost < min_c) {
-                        min_c = t_cost
-                        k = j
+            else 
+            {
+                k = i
+                min_c = mod_sum(k-1) + mod_rates(k)
+                for (j <- i-1 to 0 by -1) {
+                    var t_size = 0
+                    t_size = mod_size.slice(j,i+1).sum
+                    var mod_start = modules(j)
+                    var mod_end = modules(i)
+                    t_size += edge_size.slice(i,j+1).sum
+                    if (t_size <= cacheSize) {
+                        println("j: " + j)
+                        var t_cost = mod_rates(i)
+                        if (j-1 >= 0) {
+                            t_cost = mod_sum(j-1) + mod_rates(i)
+                        }
+                        if (t_cost < min_c) {
+                            min_c = t_cost
+                            k = j
+                        }
                     }
                 }
-            }
-            println("i:" + i)
-            mod_sum(i) = min_c
-            if (k - 1 >= 0) {
-                for (mod_id <- mod_ids(k-1)) {
-                    mod_ids(i) :+= mod_id
+                println("i:" + i)
+                mod_sum(i) = min_c
+                if (k - 1 >= 0) {
+                    for (mod_id <- mod_ids(k-1)) {
+                        mod_ids(i) :+= mod_id
+                    }
                 }
-            }
-            mod_ids(i) :+= k
+                mod_ids(i) :+= k
             }
         }
         //println("MOD IDs")
@@ -173,4 +175,4 @@ private[scalapipe] class SegCacheMapper(
         create_segments()
         assign_cross_buffers()
     }
-    }
+}

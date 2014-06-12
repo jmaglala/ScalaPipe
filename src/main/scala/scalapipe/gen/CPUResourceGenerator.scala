@@ -592,8 +592,10 @@ private[scalapipe] class CPUResourceGenerator(
             val id = segment.head.index
             
             write(s"sp_${segment.head.name}_run(&${segment.head.label}.priv);")
+            write("}")
+            return
         }
-        else {
+        
         //Write run_thread variables
         write(s"int fireKernelNum = ${segment.head.index};");
         write("int fireCount = 0;");
@@ -608,110 +610,113 @@ private[scalapipe] class CPUResourceGenerator(
         write("while (inputEmpty == false)");
         write("{");
         enter
-            //Switch statement to determine which kernel to fire
-            write("switch (fireKernelNum)");
-            write("{");
-            enter
-            //Iterate through 1 to # of kernels
-            for (kernel <- segment) {
-                //getScheduleGenerator.emitThread(t)
-                val name = kernel.name //kernel#
-                val instance = kernel.label //instance#
-                val id = kernel.index //#
-                
-                
-                
-                //If writing out code for first kernel
-                if (id == segment.head.index)
-                {
+        //Switch statement to determine which kernel to fire
+        write("switch (fireKernelNum)");
+        write("{");
+        enter
+        //Iterate through 1 to # of kernels
+        for (kernel <- segment) {
+            //getScheduleGenerator.emitThread(t)
+            val name = kernel.name //kernel#
+            val instance = kernel.label //instance#
+            val id = kernel.index //#
+            
+            
+            
+            //If writing out code for first kernel
+            if (id == segment.head.index)
+            {
                 write(s"case ${id}:")
                 enter
-                    //If it has fired the requested total and the output buffer < the next kernel's required input then end
-                    write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
-                    write("{");
-                    enter
-                    write("inputEmpty = true;");
-                    write("break;");
-                    leave
-                    write("}");
-                    //If it has fired the requested total then move onto the next kernel
-                    write("else if (fireCount >= total)");
-                    write("{");
-                    enter
-                    write("fireKernelNum++;");
-                    write("break;");
-                    leave
-                    write("}");
-                    //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                    write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size)");
-                    write("{");
-                    enter
-                        write("fireKernelNum++;");
-                    leave
-                    write("}");
-                    //Otherwise fire kernel and increment fireCount
-                    write("else")
-                    write("{")
-                        write("fireCount++;")
-                        write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
-                    leave
-                    write("}")
-                    write("break;")
+                //If it has fired the requested total and the output buffer < the next kernel's required input then end
+                write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
+                write("{");
+                enter
+                write("inputEmpty = true;");
+                write("break;");
                 leave
-                }
-                //If writing out code for the last kernel
-                else if (id == segment.last.index) {
-                write(s"case ${id}:")
-                    enter
-                    //If the input buffer < this kernel's input rate, move back a kernel
-                    write(s"if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
-                    write("{")
-                    enter
-                    write("fireKernelNum--;")
-                    leave
-                    write("}")
-                    //Otherwise fire kernel and increment fireCount
-                    write("else")
-                    write("{")
-                    enter
-                        write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
-                    leave
-                    write("}")
-                    write("break;")
-                    leave
+                write("}");
+                //If it has fired the requested total then move onto the next kernel
+                write("else if (fireCount >= total)");
+                write("{");
+                enter
+                write("fireKernelNum++;");
+                write("break;");
+                leave
+                write("}");
+                //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
+                write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size)");
+                write("{");
+                enter
+                write("fireKernelNum++;");
+                leave
+                write("}");
+                //Otherwise fire kernel and increment fireCount
+                write("else")
+                write("{")
+                enter
+                write("fireCount++;")
+                write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
+                leave
+                write("}")
+                write("break;")
+                leave
             }
-            else {
+            //If writing out code for the last kernel
+            else if (id == segment.last.index) 
+            {
+                write(s"case ${id}:")
+                enter
+                //If the input buffer < this kernel's input rate, move back a kernel
+                write(s"if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
+                write("{")
+                enter
+                write("fireKernelNum--;")
+                leave
+                write("}")
+                //Otherwise fire kernel and increment fireCount
+                write("else")
+                write("{")
+                enter
+                write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
+                leave
+                write("}")
+                write("break;")
+                leave
+            }
+            else 
+            {
                 write(s"case ${id}:")
                 enter
                 //If 
                 write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size || ((${kernel.label}_get_available(0) < ${kernel.name}_in_rate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).name}_in_rate))")
                 write("{")
                 enter
-                    write("fireKernelNum++;")
+                write("fireKernelNum++;")
                 leave
                 write("}")
                 write(s"else if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
                 write("{")
                 enter
-                    write("fireKernelNum--;")
+                write("fireKernelNum--;")
                 leave
                 write("}")
                 write("else")
                 write("{")
-                    write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
+                enter
+                write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
                 leave
                 write("}")
                 write("break;")
                 leave
-                } 
-            }
-            leave
-            write("}");
-            leave
-            write("}")
-            }
+            } 
+        }
         leave
-        write("}")
+        write("}") // switch(fireKernelNum)
+        leave
+        write("}") // while (inputEmpty == false)
+        leave
+        write("}") // static void fire_segment${segId}()
     }
     
     
