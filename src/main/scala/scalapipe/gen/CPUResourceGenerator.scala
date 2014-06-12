@@ -479,22 +479,50 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"bool segment${segId}_is_fireable()")
         write("{")
         enter
-        if (segment.head.kernel.inputs.length != 0)
+        //Get input rates
+        /*if (segment.head.kernel.inputs.length != 0)
         {
             write(s"int segment${segId}_in_rate = ${segment.head.kernel.inputs(0).rate};")
         }
         else {
             write(s"int segment${segId}_in_rate = 0;")
+        }*/
+        
+        //Get output rates and output buffer sizes
+        var segAmplification = 1
+        for (kernel <- segment) {
+            if (kernel != segment.head) {
+                segAmplification = segAmplification / kernel.kernel.inputs(0).rate
+            }
+            if (kernel.kernel.outputs.length != 0) {
+                segAmplification = segAmplification * kernel.kernel.outputs(0).rate
+            }
+            else {
+                segAmplification = -1
+            }
         }
-        if (segment.last.kernel.outputs.length != 0)
+        /*
+        //If the segment has outputs, finish calculating max # of firing iterations
+        if (maxOutputFires != -1) {
+            maxOutputFires = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)/maxOutputFires
+        }
+        
+        //Calculate max # of firing iterations if the segment has inputs
+        var maxInputFires = -1
+        if (segment.head.kernel.inputs.length != 0) {
+            maxInputFires = segment.head.getInputs(0).parameters.get[Int]('queueDepth)/segment.head.kernel.inputs(0).rate
+        }*/
+            
+            
+        /*if (segment.last.kernel.outputs.length != 0)
         {
             var seg_out_rate : Double = 1
             for (kernel <- segment) {
                 if (kernel.index == segment.head.index) {
-                    seg_out_rate *= (kernel.kernel.outputs(0).rate)
+                    seg_out_rate *= kernel.kernel.outputs(0).rate
                 }
                 else if (kernel.index == segment.last.index && kernel.kernel.inputs.length != 0) {
-                    seg_out_rate *= (1/kernel.kernel.inputs(0).rate)
+                    seg_out_rate /= kernel.kernel.inputs(0).rate
                 }
                 else {
                     seg_out_rate /= kernel.kernel.inputs(0).rate
@@ -507,40 +535,21 @@ private[scalapipe] class CPUResourceGenerator(
         }
         else {
             write(s"double segment${segId}_out_rate = 0;")
-        }
+        }*/
         
-        if (segment.head.kernel.inputs.length != 0)
+        //If first kernel is true
+        if (segment.head.kernel.inputs.length == 0)
         {
-            write(s"if (${segment.head.label}_get_available(0) < segment${segId}_in_rate)")
-            write("{")
-            enter
-            write("return false;")
-            leave
-            write("}")
+            write("return true;")
         }
-        if (segment.last.kernel.outputs.length != 0 && segment == sp.segments.head)
+        else if (segment.last.kernel.outputs.length == 0)
         {
-            //val bufferSize = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)
-            //write(s"int segment${segId}_out_buf_size = ${bufferSize};");
-            write(s"if (instance${segment.last.index+1}_get_available(0) + segment${segId}_out_rate > segment${segId}_out_buf_size)")
-            write("{")
-            enter
-            write("return false;")
-            leave
-            write("}")
+            write(s"return ${segment.head.label}_get_available(0) == ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)};")
         }
-        else if (segment.last.kernel.outputs.length != 0)
+        else
         {
-            //val bufferSize = segment.last.getOutputs(0).parameters.get[Int]('queueDepth)
-            //write(s"int segment${segId}_out_buf_size = ${bufferSize};");
-            write(s"if ((instance${segment.last.index+1}_get_available(0) + segment${segId}_out_rate > segment${segId}_out_buf_size) || instance${segment.last.index+1}_get_available(0) > segment${segId}_out_buf_size/2)")
-            write("{")
-            enter
-            write("return false;")
-            leave
-            write("}")
+            write(s"return ${segment.head.label}_get_available(0) == ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)} || ${segment.head.label}_get_available(0) * ${segAmplification} >= ${segment.last.getOutputs(0).parameters.get[Int]('queueDepth)};")
         }
-        write("return true;")
         leave
         write("}")
     }
