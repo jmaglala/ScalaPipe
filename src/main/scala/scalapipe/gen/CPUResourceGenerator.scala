@@ -548,7 +548,7 @@ private[scalapipe] class CPUResourceGenerator(
         }
         else
         {
-            write(s"return ${segment.head.label}_get_available(0) == ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)} || ${segment.head.label}_get_available(0) * ${segAmplification} >= ${segment.last.getOutputs(0).parameters.get[Int]('queueDepth)};")
+            write(s"return ${segment.head.label}_get_available(0) == ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)} || ${segment.head.label}_get_available(0)/${segment.head.kernel.inputs(0).rate} * ${segAmplification} >= ${segment.last.getOutputs(0).parameters.get[Int]('queueDepth)};")
         }
         leave
         write("}")
@@ -814,8 +814,8 @@ private[scalapipe] class CPUResourceGenerator(
                         enter
                             write(s"fire_segment${segId}();")
                             write("}")
-                        write("continue;")
                         leave
+                        write("continue;")
                     leave
                     write("}")    
                 }
