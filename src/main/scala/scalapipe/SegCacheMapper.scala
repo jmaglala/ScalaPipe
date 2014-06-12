@@ -159,6 +159,31 @@ private[scalapipe] class SegCacheMapper(
         }
     }
 
+    private[this] def assign_segments_to_core() {
+        val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
+        val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
+        var segNum = 0
+        print("SegPerCore: " + segPerCore + " - ")
+        for (i <- 0 to (sp.parameters.get[Int]('cores)-1)) {
+            for (j <- 1 to segPerCore) {
+                println(segNum + " " + i)
+                sp.segments(segNum).tid = i
+                segNum += 1
+            }
+            if (i < (extraSegs)) {
+                println(segNum + " " + i)
+                sp.segments(segNum).tid = i
+                segNum += 1
+            }
+        }
+        for (segIndex <- segNum to (sp.segments.length - 1)) {
+            
+        }
+        for (seg <- sp.segments) {
+            print(seg.tid)
+        }
+    }
+    
     // Assigns the minimum buffers to all edges
     private[this] def assign_min_buffers()
     {
@@ -185,6 +210,7 @@ private[scalapipe] class SegCacheMapper(
     {
         assign_min_buffers()
         create_segments()
+        assign_segments_to_core()
         assign_cross_buffers()
     }
 }

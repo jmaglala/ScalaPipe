@@ -781,6 +781,7 @@ private[scalapipe] class CPUResourceGenerator(
                 enter
                     write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
                     enter
+                        write(s"std::cout << fireCount << std::endl;")
                         write("fireCount++;")
                         write(s"fire_segment${segId}();")
                         write("}")
