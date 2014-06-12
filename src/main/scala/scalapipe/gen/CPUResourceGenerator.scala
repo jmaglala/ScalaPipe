@@ -194,7 +194,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"static void *${instance}_allocate(int out_port)")
         write(s"{")
         enter
-        write(s"spc_stop(&$instance.clock);")
+        //write(s"spc_stop(&$instance.clock);")
         write(s"void *ptr = NULL;")
         if (!kernel.getOutputs.filter(_.useFull).isEmpty) {
             write(s"bool first = true;")
@@ -222,7 +222,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"}")
         write(s"if(SPLIKELY(ptr != NULL)) {")
         enter
-        write(s"spc_start(&$instance.clock);")
+        //write(s"spc_start(&$instance.clock);")
         write(s"return ptr;")
         leave
         write(s"}")
@@ -243,7 +243,7 @@ private[scalapipe] class CPUResourceGenerator(
         enter
         val outputCount = kernel.getOutputs.size
         if (outputCount > 0) {
-            write(s"spc_stop(&$instance.clock);")
+            //write(s"spc_stop(&$instance.clock);")
             write(s"switch(out_port) {")
             for (stream <- kernel.getOutputs) {
                 val index = kernel.outputIndex(stream.sourcePort)
@@ -258,7 +258,7 @@ private[scalapipe] class CPUResourceGenerator(
                 leave
             }
             write(s"}")
-            write(s"spc_start(&$instance.clock);")
+            //write(s"spc_start(&$instance.clock);")
         }
         leave
         write(s"}")
@@ -273,7 +273,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"{")
         enter
         write(s"int result = 0;")
-        write(s"spc_stop(&$instance.clock);")
+        //write(s"spc_stop(&$instance.clock);")
         if (!kernel.getInputs.isEmpty) {
             write(s"switch(in_port) {")
             for (stream <- kernel.getInputs) {
@@ -286,7 +286,7 @@ private[scalapipe] class CPUResourceGenerator(
             }
             write(s"}")
         }
-        write(s"spc_start(&$instance.clock);")
+        //write(s"spc_start(&$instance.clock);")
         write(s"return result;")
         leave
         write(s"}")
@@ -302,7 +302,7 @@ private[scalapipe] class CPUResourceGenerator(
         enter
         write(s"void *ptr = NULL;")
         write(s"int end_count = 0;")
-        write(s"spc_stop(&$instance.clock);")
+        //write(s"spc_stop(&$instance.clock);")
         write(s"for(;;) {")
         enter
         if (!kernel.getInputs.isEmpty) {
@@ -320,7 +320,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"if(SPLIKELY(ptr != NULL)) {")
         enter
         write(s"$instance.clock.count += 1;");
-        write(s"spc_start(&$instance.clock);")
+        //write(s"spc_start(&$instance.clock);")
         write(s"return ptr;")
         leave
         write(s"}")
@@ -350,7 +350,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"static void ${instance}_release(int in_port)")
         write(s"{")
         enter
-        write(s"spc_stop(&$instance.clock);")
+        //write(s"spc_stop(&$instance.clock);")
         write(s"switch(in_port) {")
         for (stream <- kernel.getInputs) {
             val index = kernel.inputIndex(stream.destPort)
@@ -365,7 +365,7 @@ private[scalapipe] class CPUResourceGenerator(
             leave
         }
         write(s"}")
-        write(s"spc_start(&$instance.clock);")
+        //write(s"spc_start(&$instance.clock);")
         leave
         write(s"}")
 
@@ -710,7 +710,7 @@ private[scalapipe] class CPUResourceGenerator(
             //Calculates max fires based on gain and output buffer size
             var maxOutputFires : Double = 1
             
-            for (kernel <- segment.kernels) {
+            /*for (kernel <- segment.kernels) {
                 if (kernel != segment.kernels.head) {
                     maxOutputFires = maxOutputFires / kernel.kernel.inputs(0).rate
                 }
@@ -726,28 +726,54 @@ private[scalapipe] class CPUResourceGenerator(
             //If the segment has outputs, finish calculating max # of firing iterations
             if (maxOutputFires != -1) {
                 maxOutputFires = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)/maxOutputFires
-            }
+            }*/
             
-            //Calculate max # of firing iterations if the segment has inputs
-            var maxInputFires = -1
-            if (segment.kernels.head.kernel.inputs.length != 0) {
-                maxInputFires = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)/segment.kernels.head.kernel.inputs(0).rate
+            // First segment
+            if (segment.kernels.head.kernel.inputs.length == 0)
+            {
+                val queuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
+                val outrate = segment.kernels.last.kernel.outputs(0).rate
+                segmentFireIterations = queuedepth / outrate
             }
-            
-            if (maxInputFires == -1) {
-                segmentFireIterations = maxOutputFires
+            // Last segment
+            else if(segment.kernels.last.kernel.outputs.length == 0)
+            {       
+                val queuedepth = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
+                val inrate = segment.kernels.head.kernel.inputs(0).rate
+                segmentFireIterations = queuedepth / inrate
             }
-            else if (maxOutputFires == -1) {
-                segmentFireIterations = maxInputFires
-            }
-            else {
+            else
+            {
+                val inqueuedepth = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
+                val outqueuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
+                val maxInputFires = inqueuedepth / segment.kernels.head.kernel.inputs(0).rate
+                val maxOutputFires = outqueuedepth / segment.kernels.last.kernel.outputs(0).rate
                 segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
             }
             
-            println(segId + " " + segmentFireIterations + " " + maxInputFires + " " + maxOutputFires)
+            
+            
+            
+            //Calculate max # of firing iterations if the segment has inputs
+//             var maxInputFires = -1
+//             if (segment.kernels.head.kernel.inputs.length != 0) {
+//                 maxInputFires = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)/segment.kernels.head.kernel.inputs(0).rate
+//             }
+//             
+//             if (maxInputFires == -1) {
+//                 segmentFireIterations = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)/maxOutputFires
+//             }
+//             else if (maxOutputFires == -1) {
+//                 segmentFireIterations = maxInputFires
+//             }
+//             else {
+//                 segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
+//             }
+            
+            //println(segId + " " + segmentFireIterations + " " + maxInputFires + " " + maxOutputFires)
             
             //If writing out code for first kernel
-            if (segId == 0)
+            if (segId == 1)
             {
                 //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
                 write(s"if (segment${segId}_is_fireable() && fireCount < total)");
