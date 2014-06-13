@@ -123,8 +123,9 @@ private[scalapipe] class SegCacheMapper(
                 {
                     kernelToSPSegment += (k -> segment)
                 }
+            segment.initVariables()
             //segment.foreach(println)
-            println()
+            //println()
         }
     }
 
