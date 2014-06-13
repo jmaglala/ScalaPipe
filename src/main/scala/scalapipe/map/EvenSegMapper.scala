@@ -6,8 +6,8 @@ import scalapipe.dsl._
 import scalapipe.dsl.SPSegment
 
 private[scalapipe] class EvenSegMapper(
-    override val _sp: ScalaPipe
-) extends SegMapper(_sp)
+    val _sp: ScalaPipe
+) extends Mapper(_sp) with AugmentBuffer
 {
     private val numSegs = sp.parameters.get[Int]('schedparam)
     

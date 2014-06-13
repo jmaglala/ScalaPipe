@@ -10,8 +10,8 @@ import scalapipe.dsl.SPSegment
 
 
 private[scalapipe] class SegCacheMapper(
-    override val _sp: ScalaPipe
-    ) extends SegMapper(_sp)
+    val _sp: ScalaPipe
+    ) extends Mapper(_sp) with AugmentBuffer
 {
 
     // Greedily Creates segments of size at most M
