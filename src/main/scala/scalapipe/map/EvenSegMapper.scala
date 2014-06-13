@@ -1,6 +1,7 @@
-package scalapipe
+package scalapipe.map
 
 import scala.math
+import scalapipe._
 import scalapipe.dsl._
 import scalapipe.dsl.SPSegment
 
