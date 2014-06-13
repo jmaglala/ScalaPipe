@@ -3,6 +3,7 @@ package scalapipe
 import java.io.File
 
 import scalapipe.dsl._
+import scalapipe.map._
 import scalapipe.kernels.ANY_KERNEL
 import scalapipe.gen.XGenerator
 import scalapipe.gen.MakefileGenerator
