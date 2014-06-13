@@ -6,15 +6,13 @@ import scalapipe.dsl._
 import scalapipe.dsl.SPSegment
 
 private[scalapipe] class EvenSegMapper(
-    val _sp: ScalaPipe
-) extends Mapper(_sp)
+    override val _sp: ScalaPipe
+) extends SegMapper(_sp)
 {
-    // kernel to segment map
-    private var kernelToSPSegment = Map[KernelInstance,SPSegment]()
     private val numSegs = sp.parameters.get[Int]('schedparam)
     
     // Greedily Creates segments of size at most M
-    private[this] def create_segments()
+    def create_segments() : Unit = 
     {
         var segId = 0
         var spseg = new SPSegment(segId)
@@ -54,23 +52,29 @@ private[scalapipe] class EvenSegMapper(
         sp.segments.foreach(println)
     }
         
-    // Increases cross-edge buffers to M
-    private[this] def assign_cross_buffers()
-    {
-        // For now, we'll assum 1:1 and do everything at once
-        val totalIterations = sp.parameters.get[Int]('iterations)
-        val cacheSize = sp.parameters.get[Int]('cache)
-    
-        println(cacheSize)
-        
-        // Cross streams (connect kernels on different segments)
-        val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
-        for (s <- crossStreams)
-        {
-            val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
-            val count = cacheSize / bytes
-            //println(count)
-            s.parameters.set('queueDepth, count)    
+    def assign_segments_to_cores() : Unit = {
+        val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
+        val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
+        var segNum = 0
+        print("SegPerCore: " + segPerCore + " - ")
+        for (i <- 0 to (sp.parameters.get[Int]('cores)-1)) {
+            for (j <- 1 to segPerCore) {
+                println(segNum + " " + i)
+                sp.segments(segNum).tid = i
+                segNum += 1
+            }
+            if (i < (extraSegs)) {
+                println(segNum + " " + i)
+                sp.segments(segNum).tid = i
+                segNum += 1
+            }
+        }
+        for (segIndex <- segNum to (sp.segments.length - 1)) {
+            
+        }
+        for (seg <- sp.segments) {
+            print(seg.tid)
         }
     }
+    
 }

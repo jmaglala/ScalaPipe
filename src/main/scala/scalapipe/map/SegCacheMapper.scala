@@ -10,14 +10,12 @@ import scalapipe.dsl.SPSegment
 
 
 private[scalapipe] class SegCacheMapper(
-    val _sp: ScalaPipe
+    override val _sp: ScalaPipe
     ) extends SegMapper(_sp)
 {
-    // kernel to segment map
-    private var kernelToSPSegment = Map[KernelInstance,SPSegment]()
 
     // Greedily Creates segments of size at most M
-    private def create_segments()
+    def create_segments() : Unit = 
     {
         val cacheSize = sp.parameters.get[Int]('cache)
 
@@ -128,7 +126,7 @@ private[scalapipe] class SegCacheMapper(
         }
     }
 
-    private def assign_segments_to_core() {
+    def assign_segments_to_cores() : Unit = {
         val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
         val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
         var segNum = 0
