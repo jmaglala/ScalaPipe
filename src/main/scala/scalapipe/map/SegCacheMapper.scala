@@ -11,45 +11,13 @@ import scalapipe.dsl.SPSegment
 
 private[scalapipe] class SegCacheMapper(
     val _sp: ScalaPipe
-    ) extends Mapper(_sp)
+    ) extends SegMapper(_sp)
 {
     // kernel to segment map
     private var kernelToSPSegment = Map[KernelInstance,SPSegment]()
-    
-    private[this] def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
-    private[this] def lcm(a: Int, b: Int)=(a*b).abs/gcd(a,b)
-
-    private[this] def cross_buff(s: Stream): Int = 
-    {
-        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
-        val destRate: Int   = s.destKernel.kernel.inputs(0).rate
-        
-        // For now we're assuming the same size data... which is right?
-        val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
-        val cacheSize = sp.parameters.get[Int]('cache) / bytes
-        val t_lcm = lcm(sourceRate,destRate) 
-        if (cacheSize % t_lcm == 0) return cacheSize
-        else return ((cacheSize / t_lcm) + 1) * t_lcm
-    }
-
-    private[this] def min_buff(s: Stream): Int =
-    {
-        // We'll just use the max of the two's rates
-        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
-        val destRate: Int   = s.destKernel.kernel.inputs(0).rate
-        
-        if (sourceRate > destRate)
-        {
-            return (sourceRate)
-        }
-        else
-        {
-            return (destRate)
-        }
-    }
 
     // Greedily Creates segments of size at most M
-    private[this] def create_segments()
+    private def create_segments()
     {
         val cacheSize = sp.parameters.get[Int]('cache)
 
@@ -160,7 +128,7 @@ private[scalapipe] class SegCacheMapper(
         }
     }
 
-    private[this] def assign_segments_to_core() {
+    private def assign_segments_to_core() {
         val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
         val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
         var segNum = 0
@@ -185,33 +153,5 @@ private[scalapipe] class SegCacheMapper(
         }
     }
     
-    // Assigns the minimum buffers to all edges
-    private[this] def assign_min_buffers()
-    {
-        for (s <- sp.streams)
-        {
-            s.parameters.set('queueDepth, min_buff(s))
-        }
-    }
-        
-    // Increases cross-edge buffers to M
-    private[this] def assign_cross_buffers()
-    {
-        // Cross streams (connect kernels on different segments)
-        val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
-
-        for (s <- crossStreams)
-        {
-            val count = cross_buff(s)
-            s.parameters.set('queueDepth, count)    
-        }
-    }
-
-    def map() 
-    {
-        assign_min_buffers()
-        create_segments()
-        assign_segments_to_core()
-        assign_cross_buffers()
-    }
+    
 }

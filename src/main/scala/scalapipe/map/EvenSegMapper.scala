@@ -13,22 +13,6 @@ private[scalapipe] class EvenSegMapper(
     private var kernelToSPSegment = Map[KernelInstance,SPSegment]()
     private val numSegs = sp.parameters.get[Int]('schedparam)
     
-    private[this] def min_buff(s: Stream): Int =
-    {
-        // We'll just use the max of the two's rates
-        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
-        val destRate: Int   = s.destKernel.kernel.inputs(0).rate
-        
-        if (sourceRate > destRate)
-        {
-            return (sourceRate)
-        }
-        else
-        {
-            return (destRate)
-        }
-    }
-    
     // Greedily Creates segments of size at most M
     private[this] def create_segments()
     {
@@ -69,15 +53,6 @@ private[scalapipe] class EvenSegMapper(
         }
         sp.segments.foreach(println)
     }
-
-    // Assigns the minimum buffers to all edges
-    private[this] def assign_min_buffers()
-    {
-        for (s <- sp.streams)
-        {
-            s.parameters.set('queueDepth, min_buff(s))
-        }
-    }
         
     // Increases cross-edge buffers to M
     private[this] def assign_cross_buffers()
@@ -97,12 +72,5 @@ private[scalapipe] class EvenSegMapper(
             //println(count)
             s.parameters.set('queueDepth, count)    
         }
-    }
-    
-    def map() 
-    {
-        assign_min_buffers()
-        create_segments()
-        assign_cross_buffers()
     }
 }
