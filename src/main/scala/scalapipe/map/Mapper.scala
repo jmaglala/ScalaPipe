@@ -71,6 +71,7 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
     def assign_cross_buffers()
     {
         // Cross streams (connect kernels on different segments)
+        println("CrossBufferAssign")
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
 
         for (s <- crossStreams)

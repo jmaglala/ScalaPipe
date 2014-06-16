@@ -475,7 +475,7 @@ private[scalapipe] class ScalaPipe {
         insertParameters
         insertMeasures
 
-        // Map?
+        // Map? HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
         val map = parameters.get[String]('sched)
         var mapper: Mapper = {
             map match {
@@ -484,6 +484,15 @@ private[scalapipe] class ScalaPipe {
                     m
                 case "SegCache" =>
                     val m = new SegCacheMapper(this)
+                    m
+                case "RandomSeg" =>
+                    val m = new RandomSegMapper(this)
+                    m
+                case "RuntimeSeg" =>
+                    val m = new RuntimeSegMapper(this)
+                    m
+                case "StateSeg" =>
+                    val m = new StateSegMapper(this)
                     m
             }
         }

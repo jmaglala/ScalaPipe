@@ -3,7 +3,6 @@ package scalapipe.dsl
 import scalapipe.{KernelInstance}
 
 class SPSegment (_id: Int) {
-    println("creating seg")
     private[scalapipe] var kernels = Seq[KernelInstance]()
 
     private[scalapipe] val id = _id
@@ -27,7 +26,7 @@ class SPSegment (_id: Int) {
             if (kernel != kernels.head)
                 output_rate = output_rate / kernel.kernel.inputs(0).rate
             if (kernel.kernel.outputs.length != 0)
-                output_rate = output_rate * kernel.kernel.outputs(0).rate
+                    output_rate = output_rate * kernel.kernel.outputs(0).rate
             else
                 output_rate = -1
         }

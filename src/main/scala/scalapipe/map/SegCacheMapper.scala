@@ -143,9 +143,6 @@ private[scalapipe] class SegCacheMapper(
                 segNum += 1
             }
         }
-        for (segIndex <- segNum to (sp.segments.length - 1)) {
-            
-        }
         for (seg <- sp.segments) {
             print(seg.tid)
         }
