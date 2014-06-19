@@ -19,6 +19,7 @@ private[scalapipe] class RandomSegMapper(
         //If there are less modules than cores, give each module its own segment and core
         if (modsLen < numOfCores) {
             for (i <- 1 to modsLen) {
+                println("ASSIGNING 1 KERNEL PER CORE")
                 var sps = new SPSegment(i)
                 sps.kernels :+= modules(i-1)
                 print(i + " ")
@@ -37,9 +38,11 @@ private[scalapipe] class RandomSegMapper(
         }
         //Sort edges from smallest to largest
         rand = rand.sortWith(_ < _)
-        rand.slice(0,rand.length).foreach(print)
-        println()
         
+        //rand.slice(0,rand.length).foreach(print)
+        //println()
+        
+        println("CREATING SEGMENTS")
         //Create segments with the chosen random edges
         var segid = 0
         for (i <- 0 to rand.length-1) {

@@ -477,6 +477,7 @@ private[scalapipe] class ScalaPipe {
 
         // Map? HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
         val map = parameters.get[String]('sched)
+        val nEdges = parameters.get[Int]('nEdges)
         var mapper: Mapper = {
             map match {
                 case "EvenSeg" =>
@@ -493,6 +494,12 @@ private[scalapipe] class ScalaPipe {
                     m
                 case "StateSeg" =>
                     val m = new StateSegMapper(this)
+                    m
+                case "GainPSeg" =>
+                    val m = new GainPSegMapper(this)
+                    m
+                case "GainNSeg" =>
+                    val m = new GainNSegMapper(this,nEdges)
                     m
             }
         }

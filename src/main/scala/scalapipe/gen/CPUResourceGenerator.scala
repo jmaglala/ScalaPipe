@@ -28,6 +28,8 @@ private[scalapipe] class CPUResourceGenerator(
     
     private lazy val cacheScheduleGenerator = new CacheScheduleGenerator(sp)
     
+    private def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
+    
     private def getHDLEdgeGenerator: EdgeGenerator = {
         val fpga = sp.parameters.get[String]('fpga)
         fpga match {
@@ -480,8 +482,8 @@ private[scalapipe] class CPUResourceGenerator(
         enter
         
         //Get output rates and output buffer sizes
-        var segAmplification = 1
-        for (kernel <- segment) {
+        var segAmplification: Double = spsegment.output_rate
+        /*for (kernel <- segment) {
             if (kernel != segment.head) {
                 segAmplification = segAmplification / kernel.kernel.inputs(0).rate
             }
@@ -491,7 +493,7 @@ private[scalapipe] class CPUResourceGenerator(
             else {
                 segAmplification = -1
             }
-        }
+        }*/
         
         //If first kernel is true
         if (segment.head.kernel.inputs.length == 0)
@@ -500,11 +502,11 @@ private[scalapipe] class CPUResourceGenerator(
         }
         else if (segment.last.kernel.outputs.length == 0)
         {
-            write(s"return ${segment.head.label}_get_available(0) == ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)};")
+            write(s"return ${segment.head.label}_get_available(0) >= ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)};")
         }
         else
         {
-            write(s"return ${segment.head.label}_get_available(0) == ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)} || ${segment.head.label}_get_available(0)/${segment.head.kernel.inputs(0).rate} * ${segAmplification} >= ${segment.last.getOutputs(0).parameters.get[Int]('queueDepth)};")
+            write(s"return ${segment.head.label}_get_available(0) >= ${segment.head.getInputs(0).parameters.get[Int]('queueDepth)} || ${segment.head.label}_get_available(0)/${segment.head.kernel.inputs(0).rate} * ${segAmplification} >= ${segment.last.getOutputs(0).parameters.get[Int]('queueDepth)};")
         }
         leave
         write("}")
@@ -733,22 +735,26 @@ private[scalapipe] class CPUResourceGenerator(
             if (segment.kernels.head.kernel.inputs.length == 0)
             {
                 val queuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
-                val outrate = segment.kernels.last.kernel.outputs(0).rate
+                val outrate = segment.output_rate
                 segmentFireIterations = queuedepth / outrate
             }
             // Last segment
             else if(segment.kernels.last.kernel.outputs.length == 0)
             {       
                 val queuedepth = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
-                val inrate = segment.kernels.head.kernel.inputs(0).rate
+                val inrate = segment.input_rate
                 segmentFireIterations = queuedepth / inrate
             }
             else
             {
                 val inqueuedepth = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
                 val outqueuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
-                val maxInputFires = inqueuedepth / segment.kernels.head.kernel.inputs(0).rate
-                val maxOutputFires = outqueuedepth / segment.kernels.last.kernel.outputs(0).rate
+                val maxInputFires = inqueuedepth / segment.input_rate
+                val maxOutputFires = outqueuedepth / segment.output_rate
+                //println("MAX IN FIRES - MAX OUT FIRES")
+                //println(maxInputFires + " " + maxOutputFires)
+                //segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
+                //if (Math.max(maxInputFires, maxOutputFires) % Math.min(maxInputFires, maxOutputFires) == 0)
                 segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
             }
             
@@ -780,15 +786,16 @@ private[scalapipe] class CPUResourceGenerator(
                 write(s"if (segment${segId}_is_fireable() && fireCount < total)");
                 write("{");
                 enter
-                    write(s"std::cout << ${tid} << ' ' << ${segId} << std::endl;")
-                    write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
+                    write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
                     write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
                     enter
-                        //write(s"std::cout << fireCount << std::endl;")
+                        write(s"std::cout << fireCount << std::endl;")
+                        
                         write("fireCount++;")
                         write(s"fire_segment${segId}();")
                         write("}")
                     leave
+                    write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
                 leave
                 write("}");
                 
@@ -796,6 +803,7 @@ private[scalapipe] class CPUResourceGenerator(
                 write(s"else if (fireCount >= total)");
                 write("{");
                 enter
+                write("std::cout << 'd' << 'o' << 'n' << 'e' << std::endl;")
                 write("inputEmpty = true;");
                 leave
                 write("}");  
@@ -803,13 +811,15 @@ private[scalapipe] class CPUResourceGenerator(
             //If writing out code for the last kernel
             else 
             {
+                //write(s"std::cout << ${segId} << ' ' << ${segment.kernels.head.label}_get_available(0) << std::endl;")
                 //If the input buffer < this kernel's input rate, move back a kernel
                 write(s"if (segment${segId}_is_fireable())")
                 write("{")
                 enter
-                    write(s"std::cout << ${tid} << ' ' << ${segId} << std::endl;")
+                    write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
                     write(s"for (int i = 0; i < ${segmentFireIterations}; i++) {")
                     enter
+                        //write(s"std::cout << ${segId} << ' ' << ${segmentFireIterations} - i << ' ' << ${segment.kernels.head.label}_get_available(0) << std::endl;")
                         write(s"fire_segment${segId}();")
                         write("}")
                     leave

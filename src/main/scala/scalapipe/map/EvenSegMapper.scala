@@ -49,11 +49,10 @@ private[scalapipe] class EvenSegMapper(
                 kernelToSPSegment += (k -> segment)
             }
         }
-        sp.segments.foreach(println)
+        //sp.segments.foreach(println)
     }
         
     def assign_segments_to_cores() : Unit = {
-    
         val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
         val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
         var segNum = 0

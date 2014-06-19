@@ -8,9 +8,9 @@ class SPSegment (_id: Int) {
     private[scalapipe] val id = _id
     private[scalapipe] var tid = 0
     
-    private[scalapipe] var input_rate = 1
-    private[scalapipe] var output_rate = 1
-    private[scalapipe] var amplification = 1
+    private[scalapipe] var input_rate: Double = 1
+    private[scalapipe] var output_rate: Double = 1
+    private[scalapipe] var amplification: Double = 1
     private[scalapipe] var runtime = 0
     private[scalapipe] var state = 0
     

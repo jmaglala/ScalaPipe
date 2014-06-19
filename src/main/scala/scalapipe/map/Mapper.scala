@@ -56,22 +56,34 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
 
     def cross_buff(s: Stream): Int = 
     {
-        val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
+        //var sourceRateIn: Int = 1
+        //if (s.sourceKernel.kernel.inputs.length != 0)
+        //    sourceRateIn = s.sourceKernel.kernel.inputs(0).rate
+        val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
         val destRate: Int   = s.destKernel.kernel.inputs(0).rate
         
+        //print(sourceRate + " " + destRate + " ")
         // For now we're assuming the same size data... which is right?
         val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
-        val cacheSize = sp.parameters.get[Int]('cache) / bytes
-        val t_lcm = super.lcm(sourceRate,destRate) 
-        if (cacheSize % t_lcm == 0) return cacheSize
-        else return ((cacheSize / t_lcm) + 1) * t_lcm
+        val cacheSize: Int = sp.parameters.get[Int]('cache) / bytes
+        //val t_lcm: Int = super.lcm(super.lcm(sourceRateOut,destRate),sourceRateIn)
+        val t_lcm: Int = super.lcm(sourceRateOut,destRate)
+        print("lcm: " + t_lcm + " - ")
+        if (cacheSize % t_lcm == 0) {
+            println(cacheSize)
+            return cacheSize
+        }
+        else {
+            println(((cacheSize / t_lcm) + 1) * t_lcm)
+            return ((cacheSize / t_lcm) + 1) * t_lcm
+        }
     }
 
     // Increases cross-edge buffers to M
     def assign_cross_buffers()
     {
         // Cross streams (connect kernels on different segments)
-        println("CrossBufferAssign")
+        println("ASSIGNING CROSS BUFFERS")
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
 
         for (s <- crossStreams)
@@ -79,6 +91,7 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
             val count = cross_buff(s)
             s.parameters.set('queueDepth, count)    
         }
+        println("DONE WITH CROSS BUFFERS")
     }
 
     
