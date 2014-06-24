@@ -48,6 +48,7 @@ private[scalapipe] class EvenSegMapper(
             {
                 kernelToSPSegment += (k -> segment)
             }
+            segment.initVariables()
         }
         //sp.segments.foreach(println)
     }

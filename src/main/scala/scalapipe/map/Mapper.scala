@@ -1,5 +1,6 @@
 package scalapipe.map
 
+import scala.math
 import scalapipe._
 import scalapipe.dsl._
 
@@ -83,6 +84,7 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
     def assign_cross_buffers()
     {
         // Cross streams (connect kernels on different segments)
+        println()
         println("ASSIGNING CROSS BUFFERS")
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
 
@@ -94,11 +96,37 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         println("DONE WITH CROSS BUFFERS")
     }
 
+    def set_rates()
+    {
+        for (s <- sp.segments)
+        {
+            val sourceRate = s.input_rate
+            val destRate = s.output_rate
+            println(sourceRate + " " + destRate)
+            var inQueueSize = 1
+            if (s != sp.segments.head)
+                inQueueSize = s.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
+            var outQueueSize = 1
+            if (s != sp.segments.last)
+                outQueueSize = s.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
+            if (outQueueSize % sourceRate != 0 && sourceRate != -1 || inQueueSize % destRate != 0 && destRate != -1) {
+                val ratio: Double = 1 - (Math.min(sourceRate,destRate)/ Math.max(sourceRate,destRate))
+                println(ratio)
+                if (ratio < sp.parameters.get[Double]('bufPercent)) {
+                    //sp.parameters.set('bufPercent, ratio)
+                    //sp.parameters.set('minSegFires, ratio)
+                    println("setting to " + ratio)
+                }
+            }
+        }
+        //sp.parameters.set('bufPercent, sp.parameters.get[Double]('bufPercent)-.01)
+    }
     
     // Override the map function
     override def map() 
     {
         super.map()
         assign_cross_buffers()
+        set_rates()
     }
 }

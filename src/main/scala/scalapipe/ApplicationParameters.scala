@@ -24,10 +24,14 @@ private[scalapipe] class ApplicationParameters extends Parameters {
     add('dramAddrWidth, 27)     // DRAM address width.
     add('dramDataWidth, 128)    // DRAM data width.
     add('sched, "SegCache")     // Scheduler type
-    add('nEdges, "nEdges")     // Scheduler type
+    
+    add('nEdges, 8)             // Scheduler type
+    add('bufPercent, .5)       //Required percentage of buff to be filled for a fire
+    add('minSegFires, .5)      //Min percentage of max fires required to allow a segment to fire
+    
     add('schedparam, 1)         // A parameter for the scheduler
     add('cores, 1)              // The number of cores to use
-    add('basecpu, 8)       // The starting core id to use
+    add('basecpu, 8)            // The starting core id to use
     add('iterations, 0)         // The number of times the first kernel will issue
     add('cache, 1024*256)       // The size of the l2 cache in B
     

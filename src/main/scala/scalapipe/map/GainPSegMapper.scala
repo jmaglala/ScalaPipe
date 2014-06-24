@@ -107,6 +107,7 @@ private[scalapipe] class GainPSegMapper(
                 print(k)
                 kernelToSPSegment += (k -> segment)
             }
+            segment.initVariables()
             println()
         }
         

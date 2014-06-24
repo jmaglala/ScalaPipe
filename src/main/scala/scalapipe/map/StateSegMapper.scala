@@ -59,6 +59,7 @@ private[scalapipe] class StateSegMapper(
                     println(k)
                     kernelToSPSegment += (k -> segment)
                 }
+            segment.initVariables()
             //DEBUG
             //segment.foreach(println)
             //println()

@@ -22,6 +22,7 @@ private[scalapipe] class RuntimeSegMapper(
                 sps.kernels :+= modules(i-1)
                 print(i + " ")
                 sps.kernels.foreach(println)
+                sps.initVariables()
                 sp.segments :+= sps
             }
             return
@@ -73,6 +74,7 @@ private[scalapipe] class RuntimeSegMapper(
             println()*/
 
             //Add completed segment to sp.segments
+            sps.initVariables()
             sp.segments :+= sps
         }
     }

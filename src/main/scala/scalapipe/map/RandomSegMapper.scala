@@ -64,6 +64,7 @@ private[scalapipe] class RandomSegMapper(
             segid += 1
             var sps = new SPSegment(segid)
             sps.kernels = segment
+            sps.initVariables()
             sp.segments :+= sps
         }
     }
