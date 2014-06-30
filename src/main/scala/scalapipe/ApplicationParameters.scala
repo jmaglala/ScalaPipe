@@ -25,9 +25,7 @@ private[scalapipe] class ApplicationParameters extends Parameters {
     add('dramDataWidth, 128)    // DRAM data width.
     add('sched, "SegCache")     // Scheduler type
     
-    add('nEdges, 8)             // Scheduler type
-    add('bufPercent, .5)       //Required percentage of buff to be filled for a fire
-    add('minSegFires, .5)      //Min percentage of max fires required to allow a segment to fire
+    add('nEdges, 8)             // Number of edges to find for GainNSegMapper
     
     add('schedparam, 1)         // A parameter for the scheduler
     add('cores, 1)              // The number of cores to use

@@ -25,6 +25,7 @@ private[scalapipe] class StateSegMapper(
             //If the total + the current state size > cache or it's the last kernel
             //then create a segment
             if (totalSegState + currentSegState > cacheSize || i == modsLen-1) {
+                totalSegState -= modules(i-1).getOutputs(0).parameters.get[Int]('queueDepth)
                 segid += 1
                 var sps = new SPSegment(segid)
                 var segment = Seq[KernelInstance]()
@@ -48,8 +49,10 @@ private[scalapipe] class StateSegMapper(
                 segStart = i
             }
             //Otherwise add the kernel's state size to the total and move on
-            else
+            else {
                 totalSegState += currentSegState
+                totalSegState += modules(i).getOutputs(0).parameters.get[Int]('queueDepth)
+            }
         }
         
         //Stuff for the AugmentBuffer

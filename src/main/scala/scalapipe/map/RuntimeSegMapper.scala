@@ -7,7 +7,7 @@ import scalapipe.dsl.SPSegment
 
 private[scalapipe] class RuntimeSegMapper(
     val _sp: ScalaPipe
-) extends Mapper(_sp)
+) extends Mapper(_sp) with MinBufResize
 {
     def create_segments() : Unit = {
         val modules = sp.instances
@@ -74,8 +74,16 @@ private[scalapipe] class RuntimeSegMapper(
             println()*/
 
             //Add completed segment to sp.segments
-            sps.initVariables()
+            //sps.initVariables()
             sp.segments :+= sps
+        }
+        for (segment <- sp.segments) {
+            for(k <- segment.kernels) {
+                print(k)
+                kernelToSPSegment += (k -> segment)
+            }
+            segment.initVariables()
+            println()
         }
     }
     

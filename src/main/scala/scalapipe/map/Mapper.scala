@@ -57,9 +57,6 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
 
     def cross_buff(s: Stream): Int = 
     {
-        //var sourceRateIn: Int = 1
-        //if (s.sourceKernel.kernel.inputs.length != 0)
-        //    sourceRateIn = s.sourceKernel.kernel.inputs(0).rate
         val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
         val destRate: Int   = s.destKernel.kernel.inputs(0).rate
         
@@ -69,13 +66,13 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         val cacheSize: Int = sp.parameters.get[Int]('cache) / bytes
         //val t_lcm: Int = super.lcm(super.lcm(sourceRateOut,destRate),sourceRateIn)
         val t_lcm: Int = super.lcm(sourceRateOut,destRate)
-        print("lcm: " + t_lcm + " - ")
+        //print("lcm: " + t_lcm + " - ")
         if (cacheSize % t_lcm == 0) {
-            println(cacheSize)
+            //println(cacheSize)
             return cacheSize
         }
         else {
-            println(((cacheSize / t_lcm) + 1) * t_lcm)
+            //println(((cacheSize / t_lcm) + 1) * t_lcm)
             return ((cacheSize / t_lcm) + 1) * t_lcm
         }
     }
@@ -95,38 +92,51 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         }
         println("DONE WITH CROSS BUFFERS")
     }
-
-    def set_rates()
-    {
-        for (s <- sp.segments)
-        {
-            val sourceRate = s.input_rate
-            val destRate = s.output_rate
-            println(sourceRate + " " + destRate)
-            var inQueueSize = 1
-            if (s != sp.segments.head)
-                inQueueSize = s.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
-            var outQueueSize = 1
-            if (s != sp.segments.last)
-                outQueueSize = s.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
-            if (outQueueSize % sourceRate != 0 && sourceRate != -1 || inQueueSize % destRate != 0 && destRate != -1) {
-                val ratio: Double = 1 - (Math.min(sourceRate,destRate)/ Math.max(sourceRate,destRate))
-                println(ratio)
-                if (ratio < sp.parameters.get[Double]('bufPercent)) {
-                    //sp.parameters.set('bufPercent, ratio)
-                    //sp.parameters.set('minSegFires, ratio)
-                    println("setting to " + ratio)
-                }
-            }
-        }
-        //sp.parameters.set('bufPercent, sp.parameters.get[Double]('bufPercent)-.01)
-    }
     
     // Override the map function
     override def map() 
     {
         super.map()
         assign_cross_buffers()
-        set_rates()
+    }
+}
+
+private[scalapipe] trait MinBufResize extends Mapper{
+
+    var kernelToSPSegment = Map[KernelInstance,SPSegment]()
+
+    def assign_cross_buffers()
+    {
+        
+        // Cross streams (connect kernels on different segments)
+        println()
+        println("ASSIGNING CROSS BUFFERS")
+        val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
+
+        
+        
+        for (s <- crossStreams)
+        {
+            var i = 0
+            for (segment <- sp.segments) {
+                if (s.sourceKernel == segment.kernels.last)
+                    i = segment.id - 1
+            }
+            val newMinBufSize: Int = Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt
+            s.parameters.set('queueDepth, newMinBufSize)
+            val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
+            val destRate: Int   = s.destKernel.kernel.inputs(0).rate
+            println("i:" + i + " " + newMinBufSize + " " + s.sourceKernel.index + " " + s.label)
+            i += 1
+        }
+        println("DONE WITH CROSS BUFFERS")
+    }
+    
+    
+    
+    override def map() 
+    {
+        super.map()
+        assign_cross_buffers()
     }
 }

@@ -8,7 +8,7 @@ import scalapipe.dsl.SPSegment
 
 private[scalapipe] class RandomSegMapper(
     val _sp: ScalaPipe
-) extends Mapper(_sp)
+) extends Mapper(_sp) with MinBufResize
 {
     def create_segments() : Unit = {
         val modules = sp.instances
@@ -64,8 +64,17 @@ private[scalapipe] class RandomSegMapper(
             segid += 1
             var sps = new SPSegment(segid)
             sps.kernels = segment
-            sps.initVariables()
+            //sps.initVariables()
             sp.segments :+= sps
+        }
+        
+        for (segment <- sp.segments) {
+            for(k <- segment.kernels) {
+                print(k)
+                kernelToSPSegment += (k -> segment)
+            }
+            segment.initVariables()
+            println()
         }
     }
     def assign_segments_to_cores() : Unit = {
