@@ -784,6 +784,7 @@ private[scalapipe] class CPUResourceGenerator(
                     
                     write(s"canFire[${tid}] = true;")
                     
+                    
                     write(s"int segmentFireIterations = segment${segId}_is_fireable();")
                     write(s"for (int i = 0; i < segmentFireIterations; i++) {")
                     enter
@@ -791,6 +792,7 @@ private[scalapipe] class CPUResourceGenerator(
                         write(s"fire_segment${segId}();")
                     leave
                     write("}")
+                    write(s"canFire[${tid + 1}] = true;")
                     write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
                     write("continue;")
                     //write("std::cin.get();")
@@ -818,7 +820,7 @@ private[scalapipe] class CPUResourceGenerator(
                 leave
                 write("}")
                 
-                write("if ((tolerance == 100 && segFirePercentage > .01 && inputEmpty == false) || (tolerance == 100 && fireCount >= total)) {")
+                write("if ((tolerance == 1 && segFirePercentage > .01 && inputEmpty == false) || (tolerance == 1 && fireCount >= total)) {")
                 enter
                 write("segFirePercentage -= .001;")
                 write("lastDec = fireCount;")
@@ -858,6 +860,7 @@ private[scalapipe] class CPUResourceGenerator(
                     
                     write(s"canFire[${tid}] = true;")
                     
+                    
                     var outqueuedepth = 1
                     if (segment.kernels.last.getOutputs.length != 0)
                         outqueuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
@@ -891,6 +894,9 @@ private[scalapipe] class CPUResourceGenerator(
                         write(s"fire_segment${segId}();")
                     leave
                     write("}")
+                    if (segId != sp.segments.length) {
+                        write(s"canFire[${tid + 1}] = true;")
+                    }
                     write("continue;")
                 leave
                 write("}")    

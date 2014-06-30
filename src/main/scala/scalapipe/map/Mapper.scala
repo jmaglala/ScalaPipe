@@ -113,8 +113,6 @@ private[scalapipe] trait MinBufResize extends Mapper{
         println("ASSIGNING CROSS BUFFERS")
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
 
-        
-        
         for (s <- crossStreams)
         {
             var i = 0
@@ -122,7 +120,11 @@ private[scalapipe] trait MinBufResize extends Mapper{
                 if (s.sourceKernel == segment.kernels.last)
                     i = segment.id - 1
             }
-            val newMinBufSize: Int = Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt
+            var newMinBufSize: Int = 1
+            if (Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt % Math.min(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt == 0)
+                newMinBufSize: Int = Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt
+            else
+                newMinBufSize = sp.segments(i).output_rate + sp.segments(i+1).input_rate
             s.parameters.set('queueDepth, newMinBufSize)
             val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
             val destRate: Int   = s.destKernel.kernel.inputs(0).rate
