@@ -501,7 +501,7 @@ private[scalapipe] class CPUResourceGenerator(
         if (segment.head.kernel.inputs.length == 0)
         {
             write(s"int segmentFireIterations = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
-            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${(outqueuedepth/segOutRate)} * segFirePercentage)")
+            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${(outqueuedepth/segOutRate)} * .5)")
             enter
             write("return 0;")
             leave
@@ -513,20 +513,25 @@ private[scalapipe] class CPUResourceGenerator(
         //If it's the last kernel, just check the input availability
         else if (segment.last.kernel.outputs.length != 0)
         {
-            write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+            //write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+            //write(s"int maxInputFires = segFireCount[${spsegment.id-2}]/${segInRate};")
+            write(s"int maxInputFires = segFireCount[${spsegment.id-2}] / ${segInRate};")
             write(s"int maxOutputFires = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
             write(s"int segmentFireIterations = std::min(maxOutputFires, maxInputFires);")
-            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} * segFirePercentage)")
+            
+            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} * .5)")
             enter
             write("return 0;")
             leave
-            //write("std::cout << segmentFireIterations << std::endl;")
+            //write(s"std::cout << ${spsegment.id} << ' ' << maxInputFires << ':' << maxOutputFires<< std::endl;")
             write("return segmentFireIterations;")
         }
-         else {
-            write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+        else {
+            //write(s"int maxInputFires = segFireCount[${spsegment.id-2}]/${segInRate};")
+            //write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+            write(s"int maxInputFires = segFireCount[${spsegment.id-2}] / ${segInRate};")
             write(s"int segmentFireIterations = maxInputFires;")
-            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${inqueuedepth/segInRate} * segFirePercentage)")
+            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${inqueuedepth/segInRate} * .5)")
             enter
             write("return 0;")
             leave
@@ -782,58 +787,23 @@ private[scalapipe] class CPUResourceGenerator(
                     //val segOutRate = segment.output_rate
                     //write(s"std::cout << ${segId} <<  ':' << ${segment.kernels.head.label}_get_available << std::endl;")
                     
-                    write(s"canFire[${tid}] = true;")
-                    
                     
                     write(s"int segmentFireIterations = segment${segId}_is_fireable();")
+                    write(s"segFireCount[${segment.id-1}] = segmentFireIterations * ${segment.output_rate};")
+                    //write(s"std::cout << 'f' << ${segment.id} << ':' << segFireCount[${segment.id-1}] << std::endl;")
                     write(s"for (int i = 0; i < segmentFireIterations; i++) {")
                     enter
                         write("fireCount++;")
                         write(s"fire_segment${segId}();")
                     leave
                     write("}")
-                    write(s"canFire[${tid + 1}] = true;")
+                    //write(s"std::cout << 'f' << ${segment.id-1} << ':' << segmentFireIterations << std::endl;")
                     write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
                     write("continue;")
                     //write("std::cin.get();")
                     
                 leave
                 write("}");
-                
-                write(s"canFire[${tid}] = false;")
-                
-                write("if (canFire[0] == false && canFire[1] == false && canFire[2] == false && canFire[3] == false && canFire[4] == false && canFire[5] == false && canFire[6] == false && canFire[7] == false) {")
-                enter
-                write("tolerance++;")
-                leave
-                write("}")
-                
-                write("else if (canFire[0] == true || canFire[1] == true || canFire[2] == true || canFire[3] == true || canFire[4] == true || canFire[5] == true || canFire[6] == true || canFire[7] == true) {")
-                enter
-                write("tolerance = 0;")
-                write("if (fireCount - lastDec > 50 && segFirePercentage < .9) {")
-                enter
-                write("segFirePercentage += .01;")
-                write("std::cout << segFirePercentage*100 << std::endl;")
-                leave
-                write("}")
-                leave
-                write("}")
-                
-                write("if ((tolerance == 1 && segFirePercentage > .01 && inputEmpty == false) || (tolerance == 1 && fireCount >= total)) {")
-                enter
-                write("segFirePercentage -= .001;")
-                write("lastDec = fireCount;")
-                write("std::cout << segFirePercentage*100 << std::endl;")
-                write("tolerance = 0;")
-                leave
-                write("}")
-                
-                write("if (segFirePercentage <= 0) {")
-                enter
-                write("inputEmpty = true;")
-                leave
-                write("}")
                 
                 
                 
@@ -856,10 +826,7 @@ private[scalapipe] class CPUResourceGenerator(
                 //write(s"if (${cpuInstances(segment.kernels.head.index-1).label}_get_available(0) > ${segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)}/4*3)")
                 write("{")
                 enter
-                    //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << ' ';")
-                    
-                    write(s"canFire[${tid}] = true;")
-                    
+                    //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << ' ';")                   
                     
                     var outqueuedepth = 1
                     if (segment.kernels.last.getOutputs.length != 0)
@@ -874,19 +841,25 @@ private[scalapipe] class CPUResourceGenerator(
                     if (segment.kernels.last.getOutputs.length != 0) {
                     //write(s"int maxOutputFires = (${outqueuedepth} - ${cpuInstances(segment.kernels.last.index).label}_get_available(0))/${segOutRate};")
                     write(s"int segmentFireIterations = segment${segId}_is_fireable();")
-                    
+                    //write(s"segFireCount[${segment.id-2}] = 0;")
+                    //write(s"segFireCount[${segment.id-1}] = segmentFireIterations - ${segment.kernels.head.label}_get_available(0)/${segment.input_rate};")
+                    write(s"segFireCount[${segment.id-1}] += segmentFireIterations * ${segment.output_rate};")
+                    write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
+                    //write(s"std::cout << ${segment.id-1} << ':' << segFireCount[${segment.id-1}] << std::endl;")
                     //write(s"std::cout << 'n' << inqueuedepth/segInRate << ' ' << 'o' << outqueuedepth/segOutRate << ' ';")
                     //write(s"std::cout <<  ${"\"Diff:\""} << ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} - segmentFireIterations<< ' ';")
                     //write(s"std::cout << ${"\"MaxFires:\""} << ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} << ' ';")
                     }
                     else {
                         write(s"int segmentFireIterations = segment${segId}_is_fireable();")
+                        write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
                         //write(s"std::cout << 'n' << inqueuedepth/segInRate << ' ' << 'o' << 0 << ' ';")
                         //write(s"std::cout << segmentFireIterations << ' ';")
                     }
                     
                     //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
                     //val outqueuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
+                    //write(s"std::cout << 'f' << ${segment.id} << ':' << segFireCount[${segment.id-1}] << std::endl;")
                     write(s"for (int i = 0; i < segmentFireIterations; i++) {")
                     enter
                         //write(s"std::cout << ${segId} <<  ':' << ${segment.kernels.head.label}_get_available(0) << std::endl;")
@@ -894,16 +867,13 @@ private[scalapipe] class CPUResourceGenerator(
                         write(s"fire_segment${segId}();")
                     leave
                     write("}")
-                    if (segId != sp.segments.length) {
-                        write(s"canFire[${tid + 1}] = true;")
-                    }
+                    
+                    //write(s"std::cout << 'f' << ${segment.id-2} << ':' << segmentFireIterations << std::endl;")
+                    
                     write("continue;")
                 leave
                 write("}")    
             }
-            
-            if (segment == thread_segments.head && segId != 1)
-                write(s"canFire[${tid}] = false;")
             
         }
         leave
@@ -990,9 +960,7 @@ private[scalapipe] class CPUResourceGenerator(
         write("}")
 
         write("bool inputEmpty = false;");
-        //write(s"bool canFire[${sp.segments.length}] = {true, true, true, true, true, true, true, true};")
-        write(s"bool canFire[${sp.segments.length}];")
-        write("double segFirePercentage = 1.0;")
+        write(s"int segFireCount[${sp.segments.length}];")
         
         // Write the top edge code.
         write(edgeTop)

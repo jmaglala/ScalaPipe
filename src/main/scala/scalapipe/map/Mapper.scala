@@ -122,9 +122,9 @@ private[scalapipe] trait MinBufResize extends Mapper{
             }
             var newMinBufSize: Int = 1
             if (Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt % Math.min(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt == 0)
-                newMinBufSize: Int = Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt
+                newMinBufSize = Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt
             else
-                newMinBufSize = sp.segments(i).output_rate + sp.segments(i+1).input_rate
+                newMinBufSize = sp.segments(i).output_rate.toInt + sp.segments(i+1).input_rate.toInt
             s.parameters.set('queueDepth, newMinBufSize)
             val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
             val destRate: Int   = s.destKernel.kernel.inputs(0).rate
