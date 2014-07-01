@@ -500,7 +500,7 @@ private[scalapipe] class CPUResourceGenerator(
         //If it's the first kernel
         if (segment.head.kernel.inputs.length == 0)
         {
-            write(s"int segmentFireIterations = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
+            write(s"int segmentFireIterations = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${(outqueuedepth/segOutRate)} * .5)")
             enter
             write("return 0;")
@@ -516,7 +516,7 @@ private[scalapipe] class CPUResourceGenerator(
             //write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
             //write(s"int maxInputFires = segFireCount[${spsegment.id-2}]/${segInRate};")
             write(s"int maxInputFires = segFireCount[${spsegment.id-2}] / ${segInRate};")
-            write(s"int maxOutputFires = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
+            write(s"int maxOutputFires = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
             write(s"int segmentFireIterations = std::min(maxOutputFires, maxInputFires);")
             
             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} * .5)")
@@ -782,7 +782,7 @@ private[scalapipe] class CPUResourceGenerator(
                 write(s"if (segment${segId}_is_fireable() && fireCount < total)");
                 write("{");
                 enter
-                    //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
+                    write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
                     //val outqueuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
                     //val segOutRate = segment.output_rate
                     //write(s"std::cout << ${segId} <<  ':' << ${segment.kernels.head.label}_get_available << std::endl;")
@@ -826,7 +826,7 @@ private[scalapipe] class CPUResourceGenerator(
                 //write(s"if (${cpuInstances(segment.kernels.head.index-1).label}_get_available(0) > ${segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)}/4*3)")
                 write("{")
                 enter
-                    //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << ' ';")                   
+                    write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")                   
                     
                     var outqueuedepth = 1
                     if (segment.kernels.last.getOutputs.length != 0)
