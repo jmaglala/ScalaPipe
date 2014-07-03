@@ -121,14 +121,16 @@ private[scalapipe] trait MinBufResize extends Mapper{
                     i = segment.id - 1
             }
             var newMinBufSize: Int = 1
-            if (Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt % Math.min(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt == 0)
-                newMinBufSize = Math.max(sp.segments(i).output_rate, sp.segments(i+1).input_rate).toInt
+            val outRate = Math.max(sp.segments(i).output_rate, s.sourceKernel.kernel.outputs(0).rate)
+            val inRate = sp.segments(i+1).input_rate
+            if (Math.max(outRate, inRate).toInt % Math.min(outRate, inRate).toInt == 0)
+                newMinBufSize = Math.max(outRate, inRate).toInt
             else
-                newMinBufSize = sp.segments(i).output_rate.toInt + sp.segments(i+1).input_rate.toInt
+                newMinBufSize = outRate.toInt + inRate.toInt
             s.parameters.set('queueDepth, newMinBufSize)
             val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
             val destRate: Int   = s.destKernel.kernel.inputs(0).rate
-            println("i:" + i + " " + newMinBufSize + " " + s.sourceKernel.index + " " + s.label)
+            //println("i:" + i + " " + newMinBufSize + " " + s.sourceKernel.index + " " + s.label)
             i += 1
         }
         println("DONE WITH CROSS BUFFERS")
