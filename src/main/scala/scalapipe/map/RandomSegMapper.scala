@@ -39,10 +39,8 @@ private[scalapipe] class RandomSegMapper(
         //Sort edges from smallest to largest
         rand = rand.sortWith(_ < _)
         
-        //rand.slice(0,rand.length).foreach(print)
-        //println()
-        
-        println("CREATING SEGMENTS")
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("CREATING SEGMENTS")
         //Create segments with the chosen random edges
         var segid = 0
         for (i <- 0 to rand.length-1) {
@@ -57,9 +55,6 @@ private[scalapipe] class RandomSegMapper(
                 startKern = rand(i)
             for (kernIndex <- startKern to endKern)
                 segment :+= modules(kernIndex)
-
-            segment.foreach(print)
-            println()
             
             segid += 1
             var sps = new SPSegment(segid)
@@ -70,11 +65,13 @@ private[scalapipe] class RandomSegMapper(
         
         for (segment <- sp.segments) {
             for(k <- segment.kernels) {
-                print(k)
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    print(k)
                 kernelToSPSegment += (k -> segment)
             }
             segment.initVariables()
-            println()
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println('\n' + "in:" + segment.input_rate + " out:" + segment.output_rate + " threshold:" + segment.threshold + " amp:" + segment.amplification + " run:" + segment.runtime + " state:" + segment.state + '\n')
         }
     }
     def assign_segments_to_cores() : Unit = {

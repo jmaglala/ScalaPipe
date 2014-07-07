@@ -67,22 +67,18 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         //val t_lcm: Int = super.lcm(super.lcm(sourceRateOut,destRate),sourceRateIn)
         val t_lcm: Int = super.lcm(sourceRateOut,destRate)
         //print("lcm: " + t_lcm + " - ")
-        if (cacheSize % t_lcm == 0) {
-            //println(cacheSize)
+        if (cacheSize % t_lcm == 0) 
             return cacheSize
-        }
-        else {
-            //println(((cacheSize / t_lcm) + 1) * t_lcm)
+        else
             return ((cacheSize / t_lcm) + 1) * t_lcm
-        }
     }
 
     // Increases cross-edge buffers to M
     def assign_cross_buffers()
     {
         // Cross streams (connect kernels on different segments)
-        println()
-        println("ASSIGNING CROSS BUFFERS")
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("\nASSIGNING CROSS BUFFERS")
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
 
         for (s <- crossStreams)
@@ -90,7 +86,8 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
             val count = cross_buff(s)
             s.parameters.set('queueDepth, count)    
         }
-        println("DONE WITH CROSS BUFFERS")
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("DONE WITH CROSS BUFFERS")
     }
     
     // Override the map function
@@ -109,8 +106,8 @@ private[scalapipe] trait MinBufResize extends Mapper{
     {
         
         // Cross streams (connect kernels on different segments)
-        println()
-        println("ASSIGNING CROSS BUFFERS")
+        if (sp.parameters.get[Int]('debug) >= 2)
+                println("\nASSIGNING CROSS BUFFERS")
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
 
         for (s <- crossStreams)
@@ -130,10 +127,10 @@ private[scalapipe] trait MinBufResize extends Mapper{
             s.parameters.set('queueDepth, newMinBufSize)
             val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
             val destRate: Int   = s.destKernel.kernel.inputs(0).rate
-            //println("i:" + i + " " + newMinBufSize + " " + s.sourceKernel.index + " " + s.label)
             i += 1
         }
-        println("DONE WITH CROSS BUFFERS")
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("DONE WITH CROSS BUFFERS")
     }
     
     

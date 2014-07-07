@@ -13,7 +13,6 @@ private[scalapipe] class GainNSegMapper(
     def create_segments() : Unit = {
         val modules = sp.instances
         val modsLen = modules.length
-        //val numOfCores = sp.parameters.get[Int]('cores)
         var kernGains = Array[Int]()
         var rand = Array[Int]()
         var finalEdges = Array[Int]()
@@ -28,35 +27,34 @@ private[scalapipe] class GainNSegMapper(
                 kernGains :+= gainTotal
         }
         
-        //DEBUG
-        kernGains.foreach(println)
-        //println()
-        //println()
-        
         //Setup vars for loop control
         var edgeSelect = _nEdges
         var minGain = kernGains.min
         
         while (edgeSelect > 0) {
             var tempEdges = Array[Int]()
-            ///DEBUG
-            println("min: " + minGain)
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println("min: " + minGain)
             
             //Add all minimum gains to an tempEdges
-            println("adding min gain edges")
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println("adding min gain edges")
             for (i <- 0 to kernGains.length-1) {
                 if (kernGains(i) == minGain) {
                     tempEdges :+= i
                 }
             }
-            println("min gain edges: " + tempEdges.length)
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println("min gain edges: " + tempEdges.length)
             if (tempEdges.length <= edgeSelect) {
-                println("adding all edges")
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    println("adding all edges")
                 for (index <- tempEdges) {
                     finalEdges :+= index
                     edgeSelect -= 1
                 }
-                println("upping acceptable gain")
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    println("upping acceptable gain")
                 var nextMinGain = kernGains.max
                 for (gain <- kernGains) {
                     if (gain > minGain && gain < nextMinGain)
@@ -65,33 +63,25 @@ private[scalapipe] class GainNSegMapper(
                 minGain = nextMinGain
             }
             else {
-                println("adding rand kerns")
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    println("adding rand kerns")
                 for (i <- 0 to edgeSelect-1) {
                     var chosenEdge = nextInt(tempEdges.length-1)
                     while (finalEdges.contains(tempEdges(chosenEdge))) {
-                        println("conflict")
                         chosenEdge = nextInt(tempEdges.length-1)
                     }
-                    //DEBUG
-                    //println(tempEdges(chosenEdge))
+                    if (sp.parameters.get[Int]('debug) >= 2)
+                        println(tempEdges(chosenEdge))
                     finalEdges :+= tempEdges(chosenEdge)
                     edgeSelect -= 1
                 }
             }
         }
         finalEdges = finalEdges.sortWith(_ < _)
-        //DEBUG
-        finalEdges.foreach(println)
         var startKern = 0
         var endKern = finalEdges(0)
-        println("KERN SEGMENTS - GAIN")
-        println("length: " + finalEdges.length)
         for (i <- 1 to finalEdges.length) {
-            println("i: " + i)
             var sps = new SPSegment(i)
-            print(startKern + " - " + endKern + " - ")
-            if (i != finalEdges.length)
-                println(kernGains(endKern))
             for (j <- startKern to endKern)
                 sps.kernels :+= modules(j)
             sp.segments :+= sps
@@ -104,10 +94,11 @@ private[scalapipe] class GainNSegMapper(
         
         for (segment <- sp.segments) {
             for(k <- segment.kernels) {
-                //println(k)
                 kernelToSPSegment += (k -> segment)
             }
             segment.initVariables()
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println('\n' + "in:" + segment.input_rate + " out:" + segment.output_rate + " threshold:" + segment.threshold + " amp:" + segment.amplification + " run:" + segment.runtime + " state:" + segment.state + '\n')
         }
         
     }
@@ -117,23 +108,29 @@ private[scalapipe] class GainNSegMapper(
         val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
         val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
         var segNum = 0
-        println("ASSIGNING SEGS TO CORES")
-        print("SegPerCore: " + segPerCore + " - ")
+        if (sp.parameters.get[Int]('debug) >= 2) {
+            println("ASSIGNING SEGS TO CORES")
+            print("Min SegPerCore: " + segPerCore + "\n")
+        }
         for (i <- 0 to (sp.parameters.get[Int]('cores)-1)) {
+            if (sp.parameters.get[Int]('debug) >= 2)
+                print("Core " + i + ": ")
             for (j <- 1 to segPerCore) {
-                println(segNum + " " + i)
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    print(segNum + " ")
                 sp.segments(segNum).tid = i
                 segNum += 1
             }
             if (i < (extraSegs)) {
-                println(segNum + " " + i)
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    println(segNum + " ")
                 sp.segments(segNum).tid = i
                 segNum += 1
             }
-            println()
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println()
         }
-        for (seg <- sp.segments) {
-            print(seg.tid)
-        }
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("DONE ASSIGNING SEGS TO CORES")
     }
 }

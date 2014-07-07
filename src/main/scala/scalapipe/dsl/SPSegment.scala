@@ -31,16 +31,13 @@ class SPSegment (_id: Int) {
             else
                 output_rate = -1
         }
-        println()
         var tempThreshold: Double = 1
         if (kernels.length > 1) {
             for (i <- 0 to kernels.length - 2) {
                 var currentAmp: Double = (kernels(i).kernel.outputs(0).rate.toDouble/kernels(i+1).kernel.inputs(0).rate.toDouble)
                 tempThreshold *= currentAmp
-                //println(tempThreshold)
                 if (tempThreshold < 1 && tempThreshold < threshold) {
                     threshold = (1/tempThreshold).toInt
-                    //println("segment" + id + "threshold " + threshold + kernels(i+1))
                 }
             }
         }
@@ -54,8 +51,7 @@ class SPSegment (_id: Int) {
             runtime += kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
             state += kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
         }
-        println("in:" + input_rate + " out:" + output_rate + " threshold:" + threshold + " amp:" + amplification + " run:" + runtime + " state:" + state)
-        println()
+        
         return
     }
 }

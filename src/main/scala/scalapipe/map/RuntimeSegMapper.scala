@@ -37,14 +37,15 @@ private[scalapipe] class RuntimeSegMapper(
         var maxRuntime = runtimeAvg
         var kernelIndex = 0
         
-        //DEBUG
-        //println("Total: " + totalRuntime)
-        //println("Avg: " + (totalRuntime/numOfCores))
+        if (sp.parameters.get[Int]('debug) >= 2) {
+            println("Total Runtime: " + totalRuntime)
+            println("Avg: " + (totalRuntime/numOfCores))
+        }
         
         //Create segment for each core
         for (i <- 1 to numOfCores) {
-            //DEBUG
-            //println("MR: " + maxRuntime)
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println("MR: " + maxRuntime)
             
             //Setup segment and variables to control while loop
             var sps = new SPSegment(i)
@@ -60,30 +61,23 @@ private[scalapipe] class RuntimeSegMapper(
                     segmentRuntimeTotal += kernelRuntime
                 }
             }
-            //DEBUG
-            //println("SegTotal: " + (segmentRuntimeTotal - kernelRuntime))
-            
-            //If there is leftover runtime from the previous segment, include it in the next segment
-            if (segmentRuntimeTotal > maxRuntime)
-                maxRuntime = runtimeAvg + (segmentRuntimeTotal - maxRuntime)
-                
-            //DEBUG
-            /*for (kernel <- sps.kernels) {
-                print(kernel)
-            }
-            println()*/
+            segmentRuntimeTotal -= kernelRuntime
+            println("SRT: " + segmentRuntimeTotal + " " + "MR: " + maxRuntime)
 
-            //Add completed segment to sp.segments
-            //sps.initVariables()
+            //If there is leftover runtime from the previous segment, include it in the next segment
+            maxRuntime = maxRuntime + (maxRuntime - segmentRuntimeTotal)
+
             sp.segments :+= sps
         }
         for (segment <- sp.segments) {
             for(k <- segment.kernels) {
-                print(k)
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    print(k)
                 kernelToSPSegment += (k -> segment)
             }
             segment.initVariables()
-            println()
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println('\n' + "in:" + segment.input_rate + " out:" + segment.output_rate + " threshold:" + segment.threshold + " amp:" + segment.amplification + " run:" + segment.runtime + " state:" + segment.state + '\n')
         }
     }
     

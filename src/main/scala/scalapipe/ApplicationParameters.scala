@@ -26,6 +26,7 @@ private[scalapipe] class ApplicationParameters extends Parameters {
     add('sched, "SegCache")     // Scheduler type
     
     add('nEdges, 8)             // Number of edges to find for GainNSegMapper
+    add('debug, 0)              // Debug level 0, 1, or 2
     
     add('schedparam, 1)         // A parameter for the scheduler
     add('cores, 1)              // The number of cores to use

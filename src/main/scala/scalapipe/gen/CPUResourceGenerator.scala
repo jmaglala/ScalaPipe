@@ -479,6 +479,7 @@ private[scalapipe] class CPUResourceGenerator(
             enter
                 write(s"if (!std::min(segFireCount[${segment.id-2}]/${segment.input_rate}, (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate})) {")
                 enter
+                    write(s"std::cout << ${"\"This shouldn't happen\""} << std::endl;")
                     write("std::cin.get();")
                 leave
                 write("}")
@@ -488,18 +489,19 @@ private[scalapipe] class CPUResourceGenerator(
         }
     }
     
-    // Segment Functions
+    // Bool function to return if segment is fireable
     private def emitSegmentFireable(spsegment: SPSegment) {
-        val segment = spsegment.kernels
         val segId = spsegment.id
         
+        //Lists the segment's kernels and all the kernels
+        val segment = spsegment.kernels
         val localInstances = sp.instances.filter { instance =>
             instance.device != null && instance.device.host == host
         }
         val cpuInstances = localInstances.filter { instance =>
             shouldEmit(instance.device)
         }
-        
+        //Queue depths and rates
         var outqueuedepth = 1
         if (spsegment.kernels.last.getOutputs.length != 0)
             outqueuedepth = spsegment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
@@ -515,56 +517,61 @@ private[scalapipe] class CPUResourceGenerator(
         //If it's the first kernel
         if (segment.head.kernel.inputs.length == 0)
         {
+            //If the next segment is on a different processor, use get_available
             if (spsegment.tid != sp.segments(segId).tid)
                 write(s"int segmentFireIterations = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
+            //Otherwise use the segFireCount array
             else
                 write(s"int segmentFireIterations = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
-            //write(s"std::cout << ${spsegment.id} << ' ' << segmentFireIterations << std::endl;")
+            //If the number of iterations is 0 or less than half it's maximum fires, return false
             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${(outqueuedepth/segOutRate)} * .5)")
             enter
             write("return false;")
             leave
 
-            
             write("return true;")
 
         }
-        //If it's the last kernel, just check the input availability
+        //If it's a middle kernel
         else if (segment.last.kernel.outputs.length != 0)
         {
-            //write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
-            //write(s"int maxInputFires = segFireCount[${spsegment.id-2}]/${segInRate};")
+            //If the previous segment is on a different processor, use get_available
             if (spsegment.tid != sp.segments(segId-2).tid)
                 write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+            //Otherwise use the segFireCount array
             else
                 write(s"int maxInputFires = segFireCount[${spsegment.id-2}] / ${segInRate};")
-                
+            //If the next segment is on a different processor, use get_available
             if (spsegment.tid != sp.segments(segId).tid)
                 write(s"int maxOutputFires = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
+            //Otherwise use the segFireCount array
             else
                 write(s"int maxOutputFires = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
                 
+            //Segment fire iterations is the min of the max output fires and input fires
             write(s"int segmentFireIterations = std::min(maxOutputFires, maxInputFires);")
+            //If the number of iterations is 0 or less than half it's maximum fires, return false
             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} * .5)")
             enter
             write("return false;")
             leave
-            //write(s"std::cout << ${spsegment.id} << ' ' << maxInputFires << ':' << maxOutputFires<< std::endl;")
+            
             write("return true;")
         }
+        //If it's the last kernel
         else {
-            //write(s"int maxInputFires = segFireCount[${spsegment.id-2}]/${segInRate};")
-            //write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+            //If the previous segment is on a different processor, use get_available
             if (spsegment.tid != sp.segments(segId-2).tid)
-                write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+                write(s"int segmentFireIterations = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+            //Otherwise use the segFireCount array
             else
-                write(s"int maxInputFires = segFireCount[${spsegment.id-2}] / ${segInRate};")
-            write(s"int segmentFireIterations = maxInputFires;")
+                write(s"int segmentFireIterations = segFireCount[${spsegment.id-2}] / ${segInRate};")
+            //If the number of iterations is 0 or less than half it's maximum fires, return false
             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${inqueuedepth/segInRate} * .5)")
             enter
             write("return false;")
             leave
-            //write("std::cout << segmentFireIterations << std::endl;")
+            
             write("return true;")
 
         }
@@ -572,8 +579,9 @@ private[scalapipe] class CPUResourceGenerator(
         write("}")
     }
     
+    //Function to fire all kernels in a segment
     private def emitSegmentFire(spsegment: SPSegment) {
-        // Get devices on this host.
+        //Set variables for this segment
         val segId = spsegment.id
         val segment = spsegment.kernels
         val localInstances = sp.instances.filter { instance =>
@@ -583,7 +591,7 @@ private[scalapipe] class CPUResourceGenerator(
             shouldEmit(instance.device)
         }
         
-        write(s"static void fire_segment${segId}(int total)")
+        write(s"static void fire_segment${segId}()")
         write(s"{")
         enter 
         //Write kernel inits and rates
@@ -591,6 +599,7 @@ private[scalapipe] class CPUResourceGenerator(
             val name = kernel.name //kernel#
             val instance = kernel.label //instance#
             val id = kernel.index //#
+            //If it's not the last kernel, write it's output rate and output buffer size
             if (kernel.index != segment.last.index) {
                 val outputRate = kernel.kernel.outputs(0).rate.toInt;
                 write(s"int ${name}_out_rate = ${outputRate};");
@@ -598,6 +607,7 @@ private[scalapipe] class CPUResourceGenerator(
                 val bufferSize = kernel.getOutputs(0).parameters.get[Int]('queueDepth)
                 write(s"int ${name}_out_buf_size = ${bufferSize};");
             }
+            //If it's not the first kernel in the segment then write it's input rate
             if (kernel.index != segment.head.index) {
                 val inputRate = kernel.kernel.inputs(0).rate;
                 write(s"int ${name}_in_rate = ${inputRate};");
@@ -619,6 +629,7 @@ private[scalapipe] class CPUResourceGenerator(
         //Write run_thread variables
         write(s"int fireKernelNum = ${segment.last.index};");
         write("int fireCount = 0;");
+        write("int total = 1;")
         write("bool inputEmpty = false;");
         
         //Create while loop to run until the fireCount == requested total
@@ -640,8 +651,9 @@ private[scalapipe] class CPUResourceGenerator(
             {
                 write(s"case ${id}:")
                 enter
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    write(s"std::cout << 'k' << ${id} << std::endl;")
                 //If it has fired the requested total and the output buffer < the next kernel's required input then end
-                //write(s"std::cout << ${id} << std::endl;")
                 write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
                 write("{");
                 enter
@@ -680,7 +692,8 @@ private[scalapipe] class CPUResourceGenerator(
             {
                 write(s"case ${id}:")
                 enter
-                //write(s"std::cout << ${id} << std::endl;")
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    write(s"std::cout << 'k' << ${id} << std::endl;")
                 //If the input buffer < this kernel's input rate, move back a kernel
                 write(s"if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
                 write("{")
@@ -702,8 +715,9 @@ private[scalapipe] class CPUResourceGenerator(
             {
                 write(s"case ${id}:")
                 enter
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    write(s"std::cout << 'k' << ${id} << std::endl;")
                 //If the output buffer is full or the input buffer < input rate and the next kernel has input then move onto the next kernel
-                //write(s"std::cout << ${id} << std::endl;")
                 write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size || ((${kernel.label}_get_available(0) < ${kernel.name}_in_rate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).name}_in_rate))")
                 write("{")
                 enter
@@ -739,21 +753,20 @@ private[scalapipe] class CPUResourceGenerator(
     
     private def emitThread(tid: Int)
     {
+        //Set variables for this thread ID
         val thread_segments = sp.segments.filter(seg => seg.tid == tid)
         val cpu = sp.parameters.get[Int]('basecpu) + tid
         val localInstances = sp.instances.filter { instance => instance.device != null && instance.device.host == host }
         val cpuInstances = localInstances.filter { instance => shouldEmit(instance.device) }
+        
         write(s"static void *run_thread${tid}(void *arg)")
         write(s"{")
         enter
-        
         //Affinity 
         write(s"sp_set_affinity(${cpu});")
-        //Write run_thread variables
-        //write("bool inputEmpty = false;");
-        
         //Get total number of iterations from parameter
         var total = sp.parameters.get[Int]('iterations)
+        //If it's the first thread, then write the total and fireCount to track the fires
         if (tid == 0) {
             write(s"int total = $total;");
             write(s"int fireCount = 0;");
@@ -763,62 +776,32 @@ private[scalapipe] class CPUResourceGenerator(
         write("while (inputEmpty == false)");
         write("{");
         enter
-        
         // Select the segments from this thread's list
         for (segment <- thread_segments.reverse) 
         {
             val segId = segment.id
             
-            var segmentFireIterations : Double = -1
-            
-            //Calculates max fires based on gain and output buffer size
-            var maxOutputFires : Double = 1
-            
-            // First segment
-            if (segment.kernels.head.kernel.inputs.length == 0)
-            {
-                val queuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
-                val outrate = segment.output_rate
-                segmentFireIterations = queuedepth / outrate
-            }
-            // Last segment
-            else if(segment.kernels.last.kernel.outputs.length == 0)
-            {       
-                val queuedepth = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
-                val inrate = segment.input_rate
-                segmentFireIterations = queuedepth / inrate
-            }
-            else
-            {
-                val inqueuedepth = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
-                val outqueuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
-                val maxInputFires = inqueuedepth / segment.input_rate
-                val maxOutputFires = outqueuedepth / segment.output_rate
-                //if (Math.max(maxInputFires, maxOutputFires) % Math.min(maxInputFires, maxOutputFires) == 0)
-                segmentFireIterations = Math.min(maxInputFires, maxOutputFires)
-            }
-            
             //If writing out code for first kernel
             if (segId == 1)
             {
-            
                 //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
                 write(s"if (segment${segId}_is_fireable() && fireCount < total)");
                 write("{");
                 enter
+                    if (sp.parameters.get[Int]('debug) >= 1)
+                        write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
                     write(s"int segmentFireIterations = (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate};")
-                    write("static int fireTotal = 1;")
-                    //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
-                    
+
+                    //If the threshold is only 1 fire, then add to segFireCount on each fire
                     if (segment.threshold == 1) {
                         write(s"segFireCount[${segment.id-1}] += segmentFireIterations * ${segment.output_rate * segment.threshold};")
                     }
-                    
-                    //write(s"std::cout << 'f' << ${segment.id} << ':' << segmentFireIterations << std::endl;")
+                    //Fire the segment the calculated number of times
                     write(s"for (int i = 0; i < segmentFireIterations; i++) {")
                     enter
-                        //write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
-                        //if (segment.threshold > 1 && segment.amplification < 1) {
+                        if (sp.parameters.get[Int]('debug) >= 2)
+                            write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
+                        //If the threshold is > 1, account for the threshold when updating segFireCount
                         if (segment.threshold > 1) {
                             write("static int thresholdCount = 0;")
                             write("thresholdCount++;")
@@ -828,24 +811,19 @@ private[scalapipe] class CPUResourceGenerator(
                             write("thresholdCount = 0;")
                             leave
                             
-                            write("}")
-                            
-                            //write(s"std::cout << 't' << 'c' << ' ' << ':' << ${segment.id} << ' ' << thresholdCount << std::endl;")   
+                            write("}")   
                         }
                         write("fireCount++;")
-                        write(s"fire_segment${segId}(fireTotal);")
+                        write(s"fire_segment${segId}();")
                     leave
                     write("}")
-                    write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
+                    if (sp.parameters.get[Int]('debug) >= 1)
+                        write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
                     write("continue;")
-                    //write("std::cin.get();")
-                    
                 leave
                 write("}");
                 
-                
-                
-                //If it has fired the requested total and the output buffer < the next kernel's required input then end
+                //If it has fired the requested total then set the global inputEmpty to true and end the program
                 write(s"else if (fireCount >= total)");
                 write("{");
                 enter
@@ -857,39 +835,31 @@ private[scalapipe] class CPUResourceGenerator(
             //If writing out code for not the first kernel
             else 
             {
-
                 //If the  segment is fireable, fire it
                 write(s"if (segment${segId}_is_fireable())")
                 write("{")
                 enter
-                    //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")                   
-                    
-                    var outqueuedepth = 1
+                    if (sp.parameters.get[Int]('debug) >= 1)
+                        write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")                   
+                        
+                    //If the kernel isn't the last kernel, use seg_fire_iterations
                     if (segment.kernels.last.getOutputs.length != 0)
-                        outqueuedepth = segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
-                    val inqueuedepth = segment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
-                    val segOutRate = segment.output_rate
-                    val segInRate = segment.input_rate
-                    write("static int fireTotal = 1;")
-                    if (segment.kernels.last.getOutputs.length != 0) {
-                    write(s"int segmentFireIterations = seg${segId}_fire_iterations();")
-
-                    
-                    write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
-                    }
-                    else {
+                        write(s"int segmentFireIterations = seg${segId}_fire_iterations();")
+                    //Otherwise, just use the previous buffer size from the segFireCount array divided by the input rate
+                    else 
                         write(s"int segmentFireIterations = segFireCount[${segment.id-2}]/${segment.input_rate};")
-                        write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
-                    }
-                    
+                    //Update the segFireCount array
+                    write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
+                    //If the threshold is only 1 fire, then add to segFireCount on each fire
                     if (segment.threshold == 1) {
                         write(s"segFireCount[${segment.id-1}] += segmentFireIterations * ${segment.output_rate * segment.threshold};")
                     }
-                    //write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
-                    //write(s"std::cout << 'f' << ${segment.id} << ':' << segmentFireIterations << std::endl;")
+                    //Fire the segment the calculated number of times
                     write(s"for (int i = 0; i < segmentFireIterations; i++) {")
                     enter
-                        //if (segment.threshold > 1 && segment.amplification < 1) {
+                        if (sp.parameters.get[Int]('debug) >= 2)
+                            write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
+                        //If the threshold is > 1, account for the threshold when updating segFireCount
                         if (segment.threshold > 1) {
                             write("static int thresholdCount = 0;")
                             write("thresholdCount++;")
@@ -898,13 +868,9 @@ private[scalapipe] class CPUResourceGenerator(
                             write(s"segFireCount[${segment.id-1}] += ${segment.output_rate * segment.threshold};")
                             write("thresholdCount = 0;")
                             leave
-                            
                             write("}")
-                            
-                            //write(s"std::cout << 't' << 'c' << ' ' << ':' << ${segment.id} << ' ' << thresholdCount << std::endl;")   
                         }
-                        //write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
-                        write(s"fire_segment${segId}(fireTotal);")
+                        write(s"fire_segment${segId}();")
                     leave
                     write("}")
                     

@@ -44,7 +44,6 @@ private[scalapipe] class SegCacheMapper(
             kernel_gain /= modules(i).kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
             var min_buff_size = modules(i).getInputs(0).parameters.get[Int]('queueDepth)
             edge_size :+= min_buff_size
-            //println("minBuf: " + min_buff_size)
             }
             var kernel_state = modules(i).kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
             mod_size :+= kernel_state
@@ -74,7 +73,6 @@ private[scalapipe] class SegCacheMapper(
                     var mod_end = modules(i)
                     t_size += edge_size.slice(i,j+1).sum
                     if (t_size <= cacheSize) {
-                        println("j: " + j)
                         var t_cost = mod_rates(i)
                         if (j-1 >= 0) {
                             t_cost = mod_sum(j-1) + mod_rates(i)
@@ -85,7 +83,6 @@ private[scalapipe] class SegCacheMapper(
                         }
                     }
                 }
-                println("i:" + i)
                 mod_sum(i) = min_c
                 if (k - 1 >= 0) {
                     for (mod_id <- mod_ids(k-1)) {
@@ -95,7 +92,7 @@ private[scalapipe] class SegCacheMapper(
                 mod_ids(i) :+= k
             }
         }
-        //println("MOD IDs")
+
         val seg_starts = mod_ids(mod_ids.length-1)
         var segid = 0
         for (index <- 0 to seg_starts.length - 1) {
@@ -119,11 +116,14 @@ private[scalapipe] class SegCacheMapper(
         for (segment <- sp.segments) {
             for(k <- segment.kernels)
                 {
+                    if (sp.parameters.get[Int]('debug) >= 2)
+                        print(k)
                     kernelToSPSegment += (k -> segment)
                 }
             //segment.foreach(println)
             segment.initVariables()
-            println()
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println('\n' + "in:" + segment.input_rate + " out:" + segment.output_rate + " threshold:" + segment.threshold + " amp:" + segment.amplification + " run:" + segment.runtime + " state:" + segment.state + '\n')
         }
     }
 
@@ -131,22 +131,30 @@ private[scalapipe] class SegCacheMapper(
         val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
         val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
         var segNum = 0
-        print("SegPerCore: " + segPerCore + " - ")
+        if (sp.parameters.get[Int]('debug) >= 2) {
+            println("ASSIGNING SEGS TO CORES")
+            println("Min SegPerCore: " + segPerCore)
+        }
         for (i <- 0 to (sp.parameters.get[Int]('cores)-1)) {
+            if (sp.parameters.get[Int]('debug) >= 2)
+                print("Core " + i + ": ")
             for (j <- 1 to segPerCore) {
-                println(segNum + " " + i)
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    print(segNum + " ")
                 sp.segments(segNum).tid = i
                 segNum += 1
             }
             if (i < (extraSegs)) {
-                println(segNum + " " + i)
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    print(segNum + " ")
                 sp.segments(segNum).tid = i
                 segNum += 1
             }
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println()
         }
-        for (seg <- sp.segments) {
-            print(seg.tid)
-        }
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("DONE ASSIGNING SEGS TO CORES")
     }
     
     
