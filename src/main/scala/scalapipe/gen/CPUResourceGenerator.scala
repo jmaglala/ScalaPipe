@@ -138,7 +138,8 @@ private[scalapipe] class CPUResourceGenerator(
             write(s"${instance}.data.get_available = ${instance}_get_available;")
             write(s"${instance}.data.read_value = ${instance}_read_value;")
             write(s"${instance}.data.release = ${instance}_release;")
-            write(s"sp_${name}_init(&${instance}.priv);");
+            write(s"sp_${name}_init(&${instance}.priv);")
+            
             // Default config options.
             // These are initialized here to allow overrides from
             // the command line.
@@ -479,7 +480,7 @@ private[scalapipe] class CPUResourceGenerator(
             enter
                 write(s"if (!std::min(segFireCount[${segment.id-2}]/${segment.input_rate}, (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate})) {")
                 enter
-                    write(s"std::cout << ${"\"This shouldn't happen\""} << std::endl;")
+                    write(s"std::cout << ${"\"This shouldn't happen. Press enter to continue...\""} << std::endl;")
                     write("std::cin.get();")
                 leave
                 write("}")
@@ -593,26 +594,7 @@ private[scalapipe] class CPUResourceGenerator(
         
         write(s"static void fire_segment${segId}()")
         write(s"{")
-        enter 
-        //Write kernel inits and rates
-        for (kernel <- segment) {
-            val name = kernel.name //kernel#
-            val instance = kernel.label //instance#
-            val id = kernel.index //#
-            //If it's not the last kernel, write it's output rate and output buffer size
-            if (kernel.index != segment.last.index) {
-                val outputRate = kernel.kernel.outputs(0).rate.toInt;
-                write(s"int ${name}_out_rate = ${outputRate};");
-                
-                val bufferSize = kernel.getOutputs(0).parameters.get[Int]('queueDepth)
-                write(s"int ${name}_out_buf_size = ${bufferSize};");
-            }
-            //If it's not the first kernel in the segment then write it's input rate
-            if (kernel.index != segment.head.index) {
-                val inputRate = kernel.kernel.inputs(0).rate;
-                write(s"int ${name}_in_rate = ${inputRate};");
-            }
-        }
+        enter
         
         //If it's a single kernel in a segment, no control structures needed. Just fire the one kernel
         if (segment.head == segment.last)
@@ -654,7 +636,7 @@ private[scalapipe] class CPUResourceGenerator(
                 if (sp.parameters.get[Int]('debug) >= 2)
                     write(s"std::cout << 'k' << ${id} << std::endl;")
                 //If it has fired the requested total and the output buffer < the next kernel's required input then end
-                write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).name}_in_rate)");
+                write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).label}.priv.inrate)");
                 write("{");
                 enter
                 write("inputEmpty = true;");
@@ -670,7 +652,7 @@ private[scalapipe] class CPUResourceGenerator(
                 leave
                 write("}");
                 //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size)");
+                write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.label}.priv.outrate) > ${kernel.getOutputs(0).parameters.get[Int]('queueDepth)})");
                 write("{");
                 enter
                 write("fireKernelNum++;");
@@ -695,7 +677,7 @@ private[scalapipe] class CPUResourceGenerator(
                 if (sp.parameters.get[Int]('debug) >= 2)
                     write(s"std::cout << 'k' << ${id} << std::endl;")
                 //If the input buffer < this kernel's input rate, move back a kernel
-                write(s"if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
+                write(s"if (${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate)")
                 write("{")
                 enter
                 write("fireKernelNum--;")
@@ -718,14 +700,14 @@ private[scalapipe] class CPUResourceGenerator(
                 if (sp.parameters.get[Int]('debug) >= 2)
                     write(s"std::cout << 'k' << ${id} << std::endl;")
                 //If the output buffer is full or the input buffer < input rate and the next kernel has input then move onto the next kernel
-                write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.name}_out_rate) > ${kernel.name}_out_buf_size || ((${kernel.label}_get_available(0) < ${kernel.name}_in_rate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).name}_in_rate))")
+                write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.label}.priv.outrate) > ${kernel.getOutputs(0).parameters.get[Int]('queueDepth)} || ((${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).label}.priv.inrate))")
                 write("{")
                 enter
                 write("fireKernelNum++;")
                 leave
                 write("}")
                 //If the input buffer < input rate (and the output buffer didn't have input) then move to the previous kernel
-                write(s"else if (${kernel.label}_get_available(0) < ${kernel.name}_in_rate)")
+                write(s"else if (${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate)")
                 write("{")
                 enter
                 write("fireKernelNum--;")
@@ -821,16 +803,17 @@ private[scalapipe] class CPUResourceGenerator(
                         write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
                     write("continue;")
                 leave
-                write("}");
+                write("}")
                 
                 //If it has fired the requested total then set the global inputEmpty to true and end the program
-                write(s"else if (fireCount >= total)");
-                write("{");
+                write(s"else if (fireCount >= total)")
+                write("{")
                 enter
-                write("std::cout << 'd' << 'o' << 'n' << 'e' << std::endl;")
-                write("inputEmpty = true;");
+                if (sp.parameters.get[Int]('debug) >= 1)
+                    write("std::cout << 'd' << 'o' << 'n' << 'e' << std::endl;")
+                write("inputEmpty = true;")
                 leave
-                write("}");  
+                write("}")  
             }
             //If writing out code for not the first kernel
             else 
@@ -902,14 +885,15 @@ private[scalapipe] class CPUResourceGenerator(
         
         // Write include files that we need.
         write("#include \"ScalaPipe.h\"")
+        write("#include \"Kernel.h\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
         write("#include <sstream>")
+        write("#include <time.h>")
+        write("#include <algorithm>")
         
         //TAKE OUT----------------------------------------------------------
         write("#include <iostream>")
-        
-        write("#include <algorithm>")
 
         // Get streams on this host.
         val localStreams = sp.streams.filter { s =>
@@ -972,6 +956,24 @@ private[scalapipe] class CPUResourceGenerator(
         // Create kernel structures.
         cpuInstances.foreach(emitKernelStruct)
 
+        write(s"Kernel ** modList = new Kernel *[${cpuInstances.length}];")
+        var i = 0
+        for (kernel <- cpuInstances) {
+            var in = -1
+            if (kernel.kernel.inputs.length > 0)
+                in = kernel.kernel.inputs(0).rate
+            var out = -1
+            if (kernel.kernel.outputs.length > 0)
+                out = kernel.kernel.outputs(0).rate
+            val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
+            val runtime = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
+            
+            write(s"modList[${i}] = new Kernel(${in},${out},${state},${runtime});")
+            i += 1
+            
+        }
+        
+        
         write("static unsigned long long start_ticks;")
         write("static struct timeval start_time;")
 
@@ -1058,6 +1060,7 @@ private[scalapipe] class CPUResourceGenerator(
 		write(s"${instance}_init();")
 	    }
         
+        
         // Call the kernel init functions.
         //cpuInstances.foreach(emitKernelInit)
         
@@ -1067,6 +1070,8 @@ private[scalapipe] class CPUResourceGenerator(
         write("atexit(showStats);")
 
         // Start the threads.
+        write("struct timespec start, end, diff;")
+        write("clock_gettime(CLOCK_MONOTONIC, &start);")
         for (t <- 0 to threadIds) {
             write(s"pthread_create(&thread$t, NULL, &run_thread$t, NULL);")
         }
@@ -1077,8 +1082,9 @@ private[scalapipe] class CPUResourceGenerator(
             write(s"pthread_join(thread$t, NULL);")
         }
 
-        
-        
+        write("clock_gettime(CLOCK_MONOTONIC, &end);")
+        write("elapsed(&diff,&end,&start);")
+        write(s"fprintf(stdout, ${'\"'}%ld.%.9ld${"\\n\""},diff.tv_sec,diff.tv_nsec);")
         // Destroy the edges.
         write(edgeDestroy)
 

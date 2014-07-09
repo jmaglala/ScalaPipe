@@ -36,6 +36,7 @@ private[scalapipe] class CKernelGenerator(
 
         write(s"$sname")
         enter
+        write("int * stateBuffer;")
         for (c <- kt.configs) {
             val cname = c.name
             val vtype = c.valueType

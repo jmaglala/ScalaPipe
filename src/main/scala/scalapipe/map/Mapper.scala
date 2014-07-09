@@ -21,15 +21,13 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
         // We'll just use the max of the two's rates
         val sourceRate: Int = s.sourceKernel.kernel.outputs(0).rate
         val destRate: Int   = s.destKernel.kernel.inputs(0).rate
+        var newMinBufSize: Int = 1
         
-        if (sourceRate > destRate)
-        {
-            return (sourceRate)
-        }
+        if (Math.max(sourceRate, destRate).toInt % Math.min(sourceRate, destRate).toInt == 0)
+            newMinBufSize = Math.max(sourceRate, destRate).toInt
         else
-        {
-            return (destRate)
-        }
+            newMinBufSize = sourceRate.toInt + destRate.toInt
+        return newMinBufSize        
     }
 
     // Assigns the minimum buffers to all edges
