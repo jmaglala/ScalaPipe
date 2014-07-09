@@ -13,4 +13,8 @@ public:
     Kernel(int in, int out, int state, int rt) :
         inrate(in), outrate(out), state(state), runtime(rt)
     {}
+    
+    virtual void init() = 0;
+    virtual void fire() = 0;
+    virtual void destroy() = 0;
 };

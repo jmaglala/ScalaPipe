@@ -949,6 +949,7 @@ private[scalapipe] class CPUResourceGenerator(
 
         write("bool inputEmpty = false;");
         write(s"int segFireCount[${sp.segments.length}];")
+        write(s"Kernel ** modList = new Kernel *[${cpuInstances.length}];")
         
         // Write the top edge code.
         write(edgeTop)
@@ -956,22 +957,6 @@ private[scalapipe] class CPUResourceGenerator(
         // Create kernel structures.
         cpuInstances.foreach(emitKernelStruct)
 
-        write(s"Kernel ** modList = new Kernel *[${cpuInstances.length}];")
-        var i = 0
-        for (kernel <- cpuInstances) {
-            var in = -1
-            if (kernel.kernel.inputs.length > 0)
-                in = kernel.kernel.inputs(0).rate
-            var out = -1
-            if (kernel.kernel.outputs.length > 0)
-                out = kernel.kernel.outputs(0).rate
-            val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
-            val runtime = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
-            
-            write(s"modList[${i}] = new Kernel(${in},${out},${state},${runtime});")
-            i += 1
-            
-        }
         
         
         write("static unsigned long long start_ticks;")
@@ -1060,6 +1045,20 @@ private[scalapipe] class CPUResourceGenerator(
 		write(s"${instance}_init();")
 	    }
         
+        var i = 0
+        for (kernel <- cpuInstances) {
+            var in = -1
+            if (kernel.kernel.inputs.length > 0)
+                in = kernel.kernel.inputs(0).rate
+            var out = -1
+            if (kernel.kernel.outputs.length > 0)
+                out = kernel.kernel.outputs(0).rate
+            val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
+            val runtime = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
+            
+            write(s"modList[${i}] = new Kernel(${in},${out},${state},${runtime});")
+            i += 1 
+        }
         
         // Call the kernel init functions.
         //cpuInstances.foreach(emitKernelInit)
