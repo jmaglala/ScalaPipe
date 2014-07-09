@@ -1056,7 +1056,7 @@ private[scalapipe] class CPUResourceGenerator(
             val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
             val runtime = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
             
-            write(s"modList[${i}] = new Kernel(${in},${out},${state},${runtime});")
+            //write(s"modList[${i}] = new Kernel(${in},${out},${state},${runtime});")
             i += 1 
         }
         

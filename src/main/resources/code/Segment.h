@@ -7,10 +7,9 @@
 class Segment
 {
 public:
-    std::vector<Kernel> * kernels;         // The list of mod_ids
+    std::vector<Kernel> * kernelList;         // The list of mod_ids
     
     int id;              // An id from the scheudle
-    int tid;            // The processor assigned
     
     float input_rate = 1;
     float output_rate = 1;
@@ -24,11 +23,10 @@ public:
     
     uint8_t *        buff;
     
-    
     Segment(std::vector<Kernel> * kernels);
-    void fire();
     bool isFireable();
     int fireIterations();
+    void fire();
 };
 
 #endif // _SEGMENT_H_
