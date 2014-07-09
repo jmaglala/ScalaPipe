@@ -1,8 +1,13 @@
+#ifndef _SEGMENT_H_
+#define _SEGMENT_H_
+
+#include <vector>
+#include "Kernel.h"
 // Helper struct for storing information about a segment
 class Segment
 {
 public:
-    int kernels[];         // The list of mod_ids
+    std::vector<Kernel> * kernels;         // The list of mod_ids
     
     int id;              // An id from the scheudle
     int tid;            // The processor assigned
@@ -19,6 +24,11 @@ public:
     
     uint8_t *        buff;
     
-    Segment(int startKern, int endKern);
+    
+    Segment(std::vector<Kernel> * kernels);
     void fire();
+    bool isFireable();
+    int fireIterations();
 };
+
+#endif // _SEGMENT_H_

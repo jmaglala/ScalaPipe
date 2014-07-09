@@ -1,3 +1,6 @@
+#ifndef _KERNEL_H_
+#define _KERNEL_H_
+
 class Kernel
 {
 private:
@@ -5,6 +8,7 @@ private:
     {}
     
 public:
+    int id;
     int inrate;
     int outrate;
     int state;
@@ -18,3 +22,5 @@ public:
     virtual void fire() = 0;
     virtual void destroy() = 0;
 };
+
+#endif // _KERNEL_H_
