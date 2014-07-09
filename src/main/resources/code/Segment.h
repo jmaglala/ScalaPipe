@@ -17,6 +17,9 @@ public:
     int runtime = 0;
     int state = 0;
     int threshold = 1;
+    int in_buf_size = 0;
+    int out_buf_size = 0;
+    int max_fires = 0;
     
     Segment *        next_seg;            // The next segment
     Segment *        prev_seg;            // The previous segment

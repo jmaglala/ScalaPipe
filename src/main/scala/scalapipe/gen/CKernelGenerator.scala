@@ -18,25 +18,29 @@ private[scalapipe] class CKernelGenerator(
     private def emitHeader: String = {
 
         val kname = s"sp_${kt.name}"
-        val sname = s"struct ${kname}_data"
+        //val sname = s"struct ${kname}_data"
 
         write(s"#ifndef ${kname}_H_")
         write(s"#define ${kname}_H_")
         write("#include \"ScalaPipe.h\"")
+        write("#include \"Kernel.h\"")
         kt.dependencies.get(DependencySet.Include).foreach { i =>
             write(s"#include <$i>")
         }
 
-        val typeEmitter = new CTypeEmitter
+        // ????
+        /*val typeEmitter = new CTypeEmitter
         kt.configs.foreach { c => typeEmitter.emit(c.valueType) }
         kt.states.foreach { s => typeEmitter.emit(s.valueType) }
         kt.inputs.foreach { i => typeEmitter.emit(i.valueType) }
         kt.outputs.foreach { o => typeEmitter.emit(o.valueType) }
         write(typeEmitter)
-
-        write(s"$sname")
+        */
+        
+        write(s"class $kt.name : public Kernel")
         enter
-        write("int * stateBuffer;")
+        write("int * state_buffer;")
+         
         for (c <- kt.configs) {
             val cname = c.name
             val vtype = c.valueType
@@ -55,12 +59,13 @@ private[scalapipe] class CKernelGenerator(
             write(s"FILE *trace_fd;")
             write(s"int trace_streams[$streamCount];")
         }
+        
+        write(s"void init();")
+        write(s"void destroy();")
+        write(s"void run();")
         leave
         write(";")
 
-        write(s"void ${kname}_init($sname*);")
-        write(s"void ${kname}_destroy($sname*);")
-        write(s"void ${kname}_run($sname*);")
         emitFunctionHeader
         write(s"#endif")
 
@@ -72,9 +77,10 @@ private[scalapipe] class CKernelGenerator(
 
         val kname = kt.name
         val sname = s"sp_${kname}_data"
-
-        write(s"void sp_${kname}_init(struct $sname *kernel)")
+        
+        write(s"void ${kt.name}::init()")
         enter
+        write(s"void * kernel = this")
         for (s <- kt.states if !s.isLocal && s.value != null) {
             val field = s.name
             val value = kt.getLiteral(s.value)
@@ -89,7 +95,7 @@ private[scalapipe] class CKernelGenerator(
 
     private def emitDestroy {
         val kname = kt.name
-        write(s"void sp_${kname}_destroy(struct sp_${kname}_data *kernel)")
+        write(s"void ${kname}::destroy()")
         enter
         leave
     }
@@ -114,9 +120,9 @@ private[scalapipe] class CKernelGenerator(
             write(s"SP_READ_FUNCTION($vtype, $ktype, $index);")
         }
 
-        write(s"void sp_${kname}_run(struct sp_${kname}_data *kernel)")
+        write(s"void ${kname}::run()")
         enter
-
+        write(s"void * kernel = this")
         // Declare locals.
         for (l <- kt.states if l.isLocal) {
             val name = l.name
@@ -171,7 +177,7 @@ private[scalapipe] class CKernelGenerator(
         headerPS.close
 
         // Generate the source.
-        val sourceFile = new File(parent, s"${kt.name}.c")
+        val sourceFile = new File(parent, s"${kt.name}.cpp")
         val sourcePS = new PrintStream(new FileOutputStream(sourceFile))
         sourcePS.print("#include \"" + kt.name + ".h\"\n")
         sourcePS.print(emitSource)
