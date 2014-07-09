@@ -2,19 +2,26 @@
 #define _EDGE_H_
 
 #include "ScalaPipe.h"
+#include "Kernel.h"
+
+template <typename T>
 class Edge
 {
-    SPQ queue;
+    SPQ * queue;
     int size;
+
+    Kernel * source;
+    Kernel * dest;
     
-    Edge()
-    int get_free()
-    void allocate()
-    void send()
-    int get_available()
-    void * read_value()
-    void release()
-    void finish()
+    Edge(int depth, Kernel * source, Kernel * dest);
+    ~Edge();
+    int get_free();
+    void allocate();
+    void send();
+    int get_available();
+    void * read_value();
+    void release();
+    void finish();
 }
 
 #endif // _EDGE_H_

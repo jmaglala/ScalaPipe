@@ -886,6 +886,7 @@ private[scalapipe] class CPUResourceGenerator(
         // Write include files that we need.
         write("#include \"ScalaPipe.h\"")
         write("#include \"Kernel.h\"")
+        write("#include \"Edge.h\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
         write("#include <sstream>")
@@ -901,24 +902,24 @@ private[scalapipe] class CPUResourceGenerator(
         }
 
         // Create edge generators for local streams.
-        localStreams.foreach { s => addEdgeGenerator(s) }
+        //localStreams.foreach { s => addEdgeGenerator(s) }
 
         // Determine if we need TimeTrial.
         // Note that we need to check every stream on this host.
-        val needTimeTrial = sp.streams.filter { s =>
+        /*val needTimeTrial = sp.streams.filter { s =>
             s.sourceKernel.device.host == host ||
             s.destKernel.device.host == host
         }.exists { s => !s.measures.isEmpty }
-
-        if (needTimeTrial) {
+        */
+        /*if (needTimeTrial) {
             write("#include \"TimeTrial.hh\"")
             write("static TimeTrialAgent *tta = NULL;;")
-        }
+        }*/
 
-        write("static bool show_extra_stats = false;")
+        //write("static bool show_extra_stats = false;")
 
         // Generate code using the edge generators.
-        val edgeTop = new ListBuffer[Generator]
+        /*val edgeTop = new ListBuffer[Generator]
         val edgeGlobals = new ListBuffer[Generator]
         val edgeInit = new ListBuffer[Generator]
         val edgeDestroy = new ListBuffer[Generator]
@@ -941,7 +942,7 @@ private[scalapipe] class CPUResourceGenerator(
             edgeStats += generator.extract()
 
         }
-
+        */
         // Include kernel headers.
         write("extern \"C\" {")
         cpuInstances.foreach(emitKernelHeader)
@@ -950,25 +951,24 @@ private[scalapipe] class CPUResourceGenerator(
         write("bool inputEmpty = false;");
         write(s"int segFireCount[${sp.segments.length}];")
         write(s"Kernel ** modList = new Kernel *[${cpuInstances.length}];")
-        
+        write(s"std::vector<Kernel*> modList;")
         // Write the top edge code.
-        write(edgeTop)
+        //write(edgeTop)
 
         // Create kernel structures.
-        cpuInstances.foreach(emitKernelStruct)
+        //cpuInstances.foreach(emitKernelStruct)
 
-        
         
         write("static unsigned long long start_ticks;")
         write("static struct timeval start_time;")
 
         // Write the edge globals.
-        write(edgeGlobals)
+        //write(edgeGlobals)
 
-        writeShutdown(cpuInstances, edgeStats)
+        //writeShutdown(cpuInstances, edgeStats)
 
         // Write the kernel functions.
-        val funcs = Seq[Function[KernelInstance, Unit]](
+        /*val funcs = Seq[Function[KernelInstance, Unit]](
             emitKernelGetFree,
             emitKernelAllocate,
             emitKernelSend,
@@ -981,7 +981,7 @@ private[scalapipe] class CPUResourceGenerator(
         cpuInstances.foreach { i =>
             funcs.foreach { f => f.apply(i) }
         }
-        
+        */
         // Write the segment functions
         for (segment <- sp.segments)
         {
@@ -1015,6 +1015,7 @@ private[scalapipe] class CPUResourceGenerator(
         write("signal(SIGINT, shutdown);")
 
         // Startup TimeTrial.
+        /*
         if (needTimeTrial) {
             val ttOutput = sp.parameters.get[String]('timeTrialOutput)
             val ttFile = if (ttOutput == null) {
@@ -1038,15 +1039,11 @@ private[scalapipe] class CPUResourceGenerator(
                 write(s"tta->SendStart($id, $stat, $metric, $depth, $name);")
             }
 
-        }
+        }*/
 
         for (kernel <- cpuInstances) {
-		val instance = kernel.label //instance#
-		write(s"${instance}_init();")
-	    }
-        
-        var i = 0
-        for (kernel <- cpuInstances) {
+            val instance = kernel.label //instance#
+            val kname = kernel.name
             var in = -1
             if (kernel.kernel.inputs.length > 0)
                 in = kernel.kernel.inputs(0).rate
@@ -1055,17 +1052,19 @@ private[scalapipe] class CPUResourceGenerator(
                 out = kernel.kernel.outputs(0).rate
             val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
             val runtime = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
-            
-            write(s"modList[${i}] = new Kernel(${in},${out},${state},${runtime});")
-            i += 1 
+            write(s"modList.append(new ${kname}(${in},${out},${state},${runtime}))")
         }
         
-        // Call the kernel init functions.
-        //cpuInstances.foreach(emitKernelInit)
-        
         // Initialize the edges.
-        write(edgeInit)
-        
+        //write(edgeInit)
+        write(s"std::vector<Edge*> edges;")
+        for (s <- sp.streams)
+        {
+            val source = s.sourceKernel.index
+            val dest = s.destKernel.index
+            val depth = s.parameters.get[Int]('queueDepth)
+            write(s"edges.append(new Edge(${depth},modList[${source}],modList[${dest}]))")
+        }
         write("atexit(showStats);")
 
         // Start the threads.
@@ -1085,12 +1084,12 @@ private[scalapipe] class CPUResourceGenerator(
         write("elapsed(&diff,&end,&start);")
         write(s"fprintf(stdout, ${'\"'}%ld.%.9ld${"\\n\""},diff.tv_sec,diff.tv_nsec);")
         // Destroy the edges.
-        write(edgeDestroy)
+        //write(edgeDestroy)
 
         // Shutdown TimeTrial.
-        if (needTimeTrial) {
+        /*if (needTimeTrial) {
             write("delete tta;")
-        }
+        }*/
 
         write("return 0;")
         leave

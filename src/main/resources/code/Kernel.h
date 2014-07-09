@@ -5,9 +5,13 @@
 #include "ScalaPipe.h"
 #include <vector>
 #include <sched.h>
+
+static kid = 0;
 class Kernel
 {
     SPC clock;
+    jmp_buf env;
+    volatile uint32_t active_inputs;
     
     int id;
     int inrate;
@@ -15,13 +19,11 @@ class Kernel
     int state;
     int runtime;
  
-    int active_inputs;
-    
     std::vector<Edge> inputs;
     std::vector<Edge> outputs;
     
-    Kernel(int in, int out, int state, int rt) :
-        inrate(in), outrate(out), state(state), runtime(rt)
+    Kernel(int _in, int _out, int _state, int _rt) :
+        id(kid++),inrate(_in), outrate(_out), state(_state), runtime(_rt)
     {}
     
     virtual void init() = 0;
@@ -32,7 +34,7 @@ class Kernel
     void * allocate(int out_port);
     void send(int out_port);
     int get_available(int in_port);
-    void * read_vaule(int in_port);
+    void * read_value(int in_port);
     void release(int in_port);
 };
 
