@@ -748,6 +748,21 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"sp_set_affinity(${cpu});")
         //Get total number of iterations from parameter
         var total = sp.parameters.get[Int]('iterations)
+        
+        write(s"std::vector<Segment*> segmentList;")
+        write("std::vector<Kernel*> kernels;")
+        for (segment <- sp.segments) {
+            
+            write(s"for (int i = ${segment.kernels.head.index}; i <=${segment.kernels.last.index}; i++) {")
+            enter
+                write("kernels.push_back(modList[i]);")
+            leave
+            write("}")
+            write(s"segmentList.push_back(new Segment(kernels));")
+            write("kernels.clear();")
+        }
+        
+        
         //If it's the first thread, then write the total and fireCount to track the fires
         if (tid == 0) {
             write(s"int total = $total;");
@@ -887,6 +902,7 @@ private[scalapipe] class CPUResourceGenerator(
         write("#include \"ScalaPipe.h\"")
         write("#include \"Kernel.h\"")
         write("#include \"Edge.h\"")
+        write("#include \"Segment.h\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
         write("#include <sstream>")
@@ -952,6 +968,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"int segFireCount[${sp.segments.length}];")
         write(s"Kernel ** modList = new Kernel *[${cpuInstances.length}];")
         write(s"std::vector<Kernel*> modList;")
+        
         // Write the top edge code.
         //write(edgeTop)
 

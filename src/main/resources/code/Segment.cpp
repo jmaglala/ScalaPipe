@@ -1,6 +1,6 @@
 #include "Segment.h"
 
-Segment::Segment(std::vector<Kernel> * kernels) {
+Segment::Segment(std::vector<Kernel*> &kernels) {
     //Build kernel list
     for (int i = 0; i < kernels.length(); i++) {
         kernelList.push_back(kernels[i];
