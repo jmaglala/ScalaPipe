@@ -27,8 +27,10 @@ public:
     Kernel(int _in, int _out, int _state, int _rt) :
         id(kid++),inrate(_in), outrate(_out), state(_state), runtime(_rt)
     {}
+    ~Kernel()
+    {}
     
-    virtual void run();
+    virtual void run() = 0;
     
     int get_free(int out_port);
     void * allocate(int out_port);
