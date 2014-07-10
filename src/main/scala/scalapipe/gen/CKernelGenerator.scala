@@ -17,7 +17,7 @@ private[scalapipe] class CKernelGenerator(
 
     private def emitHeader: String = {
 
-        val kname = s"sp_${kt.name}"
+        val kname = s"${kt.name}"
         //val sname = s"struct ${kname}_data"
 
         write(s"#ifndef ${kname}_H_")
@@ -37,7 +37,7 @@ private[scalapipe] class CKernelGenerator(
         write(typeEmitter)
         */
         
-        write(s"class $kt.name : public Kernel")
+        write(s"class ${kname} : public Kernel")
         enter
         write("int * state_buffer;")
          
@@ -60,9 +60,13 @@ private[scalapipe] class CKernelGenerator(
             write(s"int trace_streams[$streamCount];")
         }
         
-        write(s"void init();")
-        write(s"void destroy();")
+        
+        write(s"public:")
+        
+        write(s"${kname}(int, int, int, int);")
+        write(s"~${kname}();")
         write(s"void run();")
+        
         leave
         write(";")
 
@@ -78,8 +82,9 @@ private[scalapipe] class CKernelGenerator(
         val kname = kt.name
         val sname = s"sp_${kname}_data"
         
-        write(s"void ${kt.name}::init()")
+        write(s"void ${kname}::${kname}(int _in, int _out, int _state, int _rt)")
         enter
+        write(s"super(_in,_out,_state,_rt);")
         write(s"void * kernel = this")
         for (s <- kt.states if !s.isLocal && s.value != null) {
             val field = s.name
@@ -95,7 +100,7 @@ private[scalapipe] class CKernelGenerator(
 
     private def emitDestroy {
         val kname = kt.name
-        write(s"void ${kname}::destroy()")
+        write(s"void ${kname}::~${kname}()")
         enter
         leave
     }

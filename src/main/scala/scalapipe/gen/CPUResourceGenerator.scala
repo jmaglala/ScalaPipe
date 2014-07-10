@@ -950,7 +950,6 @@ private[scalapipe] class CPUResourceGenerator(
 
         write("bool inputEmpty = false;");
         write(s"int segFireCount[${sp.segments.length}];")
-        write(s"Kernel ** modList = new Kernel *[${cpuInstances.length}];")
         write(s"std::vector<Kernel*> modList;")
         // Write the top edge code.
         //write(edgeTop)
@@ -1012,7 +1011,7 @@ private[scalapipe] class CPUResourceGenerator(
         write("start_ticks = sp_get_ticks();")
         write("gettimeofday(&start_time, NULL);")
 
-        write("signal(SIGINT, shutdown);")
+        //write("signal(SIGINT, shutdown);")
 
         // Startup TimeTrial.
         /*
@@ -1053,21 +1052,22 @@ private[scalapipe] class CPUResourceGenerator(
             val state = kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
             val runtime = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
 
-            write(s"modList.append(new ${kname}(${in},${out},${state},${runtime}))")
+            write(s"modList.push_back(new ${kname}(${in},${out},${state},${runtime}));")
 
         }
         
         // Initialize the edges.
         //write(edgeInit)
-        write(s"std::vector<Edge*> edges;")
+        write(s"std::vector<EdgeBase*> edges;")
         for (s <- sp.streams)
         {
             val source = s.sourceKernel.index
             val dest = s.destKernel.index
             val depth = s.parameters.get[Int]('queueDepth)
-            write(s"edges.append(new Edge(${depth},modList[${source}],modList[${dest}]))")
+            val vtype = s.valueType
+            write(s"edges.push_back(new Edge<${vtype}>(${depth},modList[${source}],modList[${dest}]));")
         }
-        write("atexit(showStats);")
+        //write("atexit(showStats);")
 
         // Start the threads.
         write("struct timespec start, end, diff;")

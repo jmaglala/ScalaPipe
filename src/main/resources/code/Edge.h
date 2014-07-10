@@ -2,17 +2,25 @@
 #define _EDGE_H_
 
 #include "ScalaPipe.h"
-#include "Kernel.h"
+//#include "Kernel.h"
+
+class Kernel;
+
+class EdgeBase
+{
+    
+};
 
 template <typename T>
-class Edge
+class Edge : public EdgeBase
 {
+public:
     SPQ * queue;
     int size;
 
     Kernel * source;
     Kernel * dest;
-    
+
     Edge(int depth, Kernel * source, Kernel * dest);
     ~Edge();
     int get_free();
@@ -22,7 +30,7 @@ class Edge
     void * read_value();
     void release();
     void finish();
-}
+};
 
 #endif // _EDGE_H_
 
