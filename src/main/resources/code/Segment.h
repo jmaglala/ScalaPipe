@@ -11,15 +11,15 @@ public:
     
     int id;              // An id from the scheudle
     
-    float input_rate = 1;
-    float output_rate = 1;
-    float amplification = 1;
-    int runtime = 0;
-    int state = 0;
-    int threshold = 1;
-    int in_buf_size = 0;
-    int out_buf_size = 0;
-    int max_fires = 0;
+    float input_rate;
+    float output_rate;
+    float amplification;
+    int runtime;
+    int state;
+    int threshold;
+    int in_buf_size;
+    int out_buf_size;
+    int max_fires;
     
     Segment *        next_seg;            // The next segment
     Segment *        prev_seg;            // The previous segment
