@@ -741,9 +741,6 @@ private[scalapipe] class CPUResourceGenerator(
         val localInstances = sp.instances.filter { instance => instance.device != null && instance.device.host == host }
         val cpuInstances = localInstances.filter { instance => shouldEmit(instance.device) }
         
-        if (thread_segments.length == 0)
-            return
-        
         write(s"static void *run_thread${tid}(void *arg)")
         write(s"{")
         enter
@@ -776,118 +773,117 @@ private[scalapipe] class CPUResourceGenerator(
         write("while (inputEmpty == false)");
         write("{");
         enter
-        // Select the segments from this thread's list
-        for (i <- thread_segments.length-1 to 0 by -1) 
-        {
-            val segment = thread_segments(i)
-            val segId = segment.id
-            
-            //If writing out code for first kernel
-            if (segId == 1)
+        if (thread_segments.length > 0) {
+            // Select the segments from this thread's list
+            for (i <- thread_segments.length-1 to 0 by -1) 
             {
-                var lastSegOnThread = false
-                if (i == thread_segments.length-1) {
-                    lastSegOnThread = true
-                }
-                //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                write(s"if (segmentList[${i}]->isFireable(segFireCount, true, ${lastSegOnThread}) && fireCount < total)");
-                write("{");
-                enter
-                    if (sp.parameters.get[Int]('debug) >= 1)
-                        write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
-                    write(s"int segmentFireIterations = (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate};")
+                val segment = thread_segments(i)
+                val segId = segment.id
+                
+                //If writing out code for first kernel
+                if (segId == 1)
+                {
+                    var lastSegOnThread = false
+                    if (i == thread_segments.length-1) {
+                        lastSegOnThread = true
+                    }
+                    //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
+                    write(s"if (segmentList[${i}]->isFireable(segFireCount, true, ${lastSegOnThread}) && fireCount < total)");
+                    write("{");
+                    enter
+                        if (sp.parameters.get[Int]('debug) >= 1)
+                            write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
+                        write(s"int segmentFireIterations = (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate};")
 
-                    //If the threshold is only 1 fire, then add to segFireCount on each fire
-                    if (segment.threshold == 1) {
-                        write(s"segFireCount[${segment.id-1}] += segmentFireIterations * ${segment.output_rate * segment.threshold};")
-                    }
-                    //Fire the segment the calculated number of times
-                    write(s"for (int i = 0; i < segmentFireIterations; i++) {")
-                    enter
-                        if (sp.parameters.get[Int]('debug) >= 2)
-                            write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
-                        //If the threshold is > 1, account for the threshold when updating segFireCount
-                        if (segment.threshold > 1) {
-                            write("static int thresholdCount = 0;")
-                            write("thresholdCount++;")
-                            write(s"if (thresholdCount == ${segment.threshold}) {")
-                            enter
-                            write(s"segFireCount[${segment.id-1}] += ${segment.output_rate * segment.threshold};")
-                            write("thresholdCount = 0;")
-                            leave
-                            
-                            write("}")   
+                        //If the threshold is only 1 fire, then add to segFireCount on each fire
+                        if (segment.threshold == 1) {
+                            write(s"segFireCount[${segment.id-1}] += segmentFireIterations * ${segment.output_rate * segment.threshold};")
                         }
-                        write("fireCount++;")
-                        write(s"segmentList[${i}].fire();")
-                    leave
-                    write("}")
-                    if (sp.parameters.get[Int]('debug) >= 1)
-                        write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
-                    write("continue;")
-                leave
-                write("}")
-                
-                //If it has fired the requested total then set the global inputEmpty to true and end the program
-                write(s"else if (fireCount >= total)")
-                write("{")
-                enter
-                if (sp.parameters.get[Int]('debug) >= 1)
-                    write("std::cout << 'd' << 'o' << 'n' << 'e' << std::endl;")
-                write("inputEmpty = true;")
-                leave
-                write("}")  
-            }
-            //If writing out code for not the first kernel
-            else 
-            {
-                var lastSegOnThread = false
-                if (i == thread_segments.length-1) {
-                    lastSegOnThread = true
-                }
-                
-                //If the  segment is fireable, fire it
-                write(s"if (segmentList[${i}]->isFireable(segFireCount, true, ${lastSegOnThread}))")
-                write("{")
-                enter
-                    if (sp.parameters.get[Int]('debug) >= 1)
-                        write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")                   
-                        
-                    //If the kernel isn't the last kernel, use seg_fire_iterations
-                    if (segment.kernels.last.getOutputs.length != 0)
-                        write(s"int segmentFireIterations = segmentList[${i}]->fireIterations;")
-                        
-                    //Update the segFireCount array
-                    write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
-                    //If the threshold is only 1 fire, then add to segFireCount on each fire
-                    if (segment.threshold == 1) {
-                        write(s"segFireCount[${segment.id-1}] += segmentFireIterations * ${segment.output_rate * segment.threshold};")
-                    }
-                    //Fire the segment the calculated number of times
-                    write(s"for (int i = 0; i < segmentFireIterations; i++) {")
-                    enter
-                        if (sp.parameters.get[Int]('debug) >= 2)
-                            write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
-                        //If the threshold is > 1, account for the threshold when updating segFireCount
-                        if (segment.threshold > 1) {
-                            write("static int thresholdCount = 0;")
-                            write("thresholdCount++;")
-                            write(s"if (thresholdCount == ${segment.threshold}) {")
-                            enter
-                            write(s"segFireCount[${segment.id-1}] += ${segment.output_rate * segment.threshold};")
-                            write("thresholdCount = 0;")
-                            leave
-                            write("}")
-                        }
-                        write(s"segmentList[${i}].fire();")
+                        //Fire the segment the calculated number of times
+                        write(s"for (int i = 0; i < segmentFireIterations; i++) {")
+                        enter
+                            if (sp.parameters.get[Int]('debug) >= 2)
+                                write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
+                            //If the threshold is > 1, account for the threshold when updating segFireCount
+                            if (segment.threshold > 1) {
+                                write("static int thresholdCount = 0;")
+                                write("thresholdCount++;")
+                                write(s"if (thresholdCount == ${segment.threshold}) {")
+                                enter
+                                write(s"segFireCount[${segment.id-1}] += ${segment.output_rate * segment.threshold};")
+                                write("thresholdCount = 0;")
+                                leave
+                                
+                                write("}")   
+                            }
+                            write("fireCount++;")
+                            write(s"segmentList[${i}]->fire();")
+                        leave
+                        write("}")
+                        if (sp.parameters.get[Int]('debug) >= 1)
+                            write(s"std::cout << 'F' << 'C' << ':' << ' ' << fireCount << std::endl;")
+                        write("continue;")
                     leave
                     write("}")
                     
-                    write("continue;")
-                leave
-                write("}")    
+                    //If it has fired the requested total then set the global inputEmpty to true and end the program
+                    write(s"else if (fireCount >= total)")
+                    write("{")
+                    enter
+                    if (sp.parameters.get[Int]('debug) >= 1)
+                        write("std::cout << 'd' << 'o' << 'n' << 'e' << std::endl;")
+                    write("inputEmpty = true;")
+                    leave
+                    write("}")  
+                }
+                //If writing out code for not the first kernel
+                else 
+                {
+                    var lastSegOnThread = false
+                    if (i == thread_segments.length-1) {
+                        lastSegOnThread = true
+                    }
+                    
+                    //If the  segment is fireable, fire it
+                    write(s"if (segmentList[${i}]->isFireable(segFireCount, true, ${lastSegOnThread}))")
+                    write("{")
+                    enter
+                        if (sp.parameters.get[Int]('debug) >= 1)
+                            write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")                   
+                            
+                        write(s"int segmentFireIterations = segmentList[${i}]->fireIterations(segFireCount);")
+                            
+                        //Update the segFireCount array
+                        write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
+                        //If the threshold is only 1 fire, then add to segFireCount on each fire
+                        if (segment.threshold == 1) {
+                            write(s"segFireCount[${segment.id-1}] += segmentFireIterations * ${segment.output_rate * segment.threshold};")
+                        }
+                        //Fire the segment the calculated number of times
+                        write(s"for (int i = 0; i < segmentFireIterations; i++) {")
+                        enter
+                            if (sp.parameters.get[Int]('debug) >= 2)
+                                write(s"std::cout << ${"\"FIRING\""} << ' ' << ${segId} << ' ' << segmentFireIterations - i << std::endl;")
+                            //If the threshold is > 1, account for the threshold when updating segFireCount
+                            if (segment.threshold > 1) {
+                                write("static int thresholdCount = 0;")
+                                write("thresholdCount++;")
+                                write(s"if (thresholdCount == ${segment.threshold}) {")
+                                enter
+                                write(s"segFireCount[${segment.id-1}] += ${segment.output_rate * segment.threshold};")
+                                write("thresholdCount = 0;")
+                                leave
+                                write("}")
+                            }
+                            write(s"segmentList[${i}]->fire();")
+                        leave
+                        write("}")
+                        
+                        write("continue;")
+                    leave
+                    write("}")    
+                }
             }
-            
         }
         leave
         write("}")
@@ -911,9 +907,9 @@ private[scalapipe] class CPUResourceGenerator(
         
         // Write include files that we need.
         write("#include \"ScalaPipe.h\"")
-        write("#include \"Kernel.h\"")
+        write("#include \"Kernel.cpp\"")
         write("#include \"Edge.h\"")
-        write("#include \"Segment.h\"")
+        write("#include \"Segment.cpp\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
         write("#include <sstream>")

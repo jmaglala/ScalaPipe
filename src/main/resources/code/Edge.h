@@ -8,28 +8,30 @@ class Kernel;
 
 class EdgeBase
 {
+public:
+    SPQ * queue;
+
+    Kernel * source;
+    Kernel * dest;
     
+    int size;
+    int get_free();
+    void * allocate();
+    void send();
+    int get_available();
+    void * read_value();
+    void release();
+    void finish();
 };
 
 template <typename T>
 class Edge : public EdgeBase
 {
 public:
-    SPQ * queue;
-    int size;
-
-    Kernel * source;
-    Kernel * dest;
 
     Edge(int depth, Kernel * source, Kernel * dest);
     ~Edge();
-    int get_free();
-    void allocate();
-    void send();
-    int get_available();
-    void * read_value();
-    void release();
-    void finish();
+    
 };
 
 #endif // _EDGE_H_

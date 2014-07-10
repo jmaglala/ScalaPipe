@@ -97,33 +97,33 @@ typedef char       *STRING;
 
 /** Get free space on an output port. */
 #define sp_get_free( kernel, out_port ) \
-    (sp_get_private(kernel)->get_free)(out_port)
+    (kernel->get_free)(out_port)
 
 /** Allocate space on an output port (blocks if necessary). */
 #define sp_allocate( kernel, out_port ) \
-    (sp_get_private(kernel)->allocate)(out_port)
+    (kernel->allocate)(out_port)
 
 /** Send data on an output port. */
 #define sp_send( kernel, out_port ) \
-    (sp_get_private(kernel)->send)(out_port)
+    (kernel->send)(out_port)
 
 /** Get available data on an input port. */
 #define sp_get_available( kernel, in_port ) \
-    (sp_get_private(kernel)->get_available)(in_port)
+    (kernel->get_available)(in_port)
 
 /** Read a value from an input port (blocks if necessary). */
 #define sp_read_value( kernel, in_port ) \
-    (sp_get_private(kernel)->read_value)(in_port)
+    (kernel->read_value)(in_port)
 
 /** Release data on an input port. */
 #define sp_release( kernel, in_port ) \
-    (sp_get_private(kernel)->release)(in_port)
+    (kernel)->release)(in_port)
 
 /** Create a function to read a value from an input port. */
-#define SP_READ_FUNCTION( RTYPE, KTYPE, port ) \
-    static inline RTYPE sp_read_input ## port ( struct KTYPE *kernel ) { \
-        RTYPE result = *(RTYPE*)sp_read_value( kernel, port ); \
-        sp_release(kernel, port); \
+#define SP_READ_FUNCTION( RTYPE, port ) \
+    static inline RTYPE sp_read_input ## port (Kernel *kernel) { \
+        RTYPE result = *(RTYPE*)kernel->read_value(port ); \
+        kernel->release(port); \
         return result; \
     }
 

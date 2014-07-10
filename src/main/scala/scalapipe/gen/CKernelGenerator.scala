@@ -82,10 +82,10 @@ private[scalapipe] class CKernelGenerator(
         val kname = kt.name
         val sname = s"sp_${kname}_data"
         
-        write(s"void ${kname}::${kname}(int _in, int _out, int _state, int _rt)")
+        write(s"${kname}::${kname}(int _in, int _out, int _state, int _rt) : Kernel(_in,_out,_state,_rt)")
         enter
-        write(s"super(_in,_out,_state,_rt);")
-        write(s"void * kernel = this")
+        //write(s"super(_in,_out,_state,_rt);")
+        write(s"${kt.name} * kernel = this;")
         for (s <- kt.states if !s.isLocal && s.value != null) {
             val field = s.name
             val value = kt.getLiteral(s.value)
@@ -100,7 +100,7 @@ private[scalapipe] class CKernelGenerator(
 
     private def emitDestroy {
         val kname = kt.name
-        write(s"void ${kname}::~${kname}()")
+        write(s"${kname}::~${kname}()")
         enter
         leave
     }
@@ -121,13 +121,13 @@ private[scalapipe] class CKernelGenerator(
         for (i <- kt.inputs) {
             val index = i.id
             val vtype = i.valueType
-            val ktype = s"sp_${kname}_data"
-            write(s"SP_READ_FUNCTION($vtype, $ktype, $index);")
+            //val ktype = s"sp_${kname}_data"
+            write(s"SP_READ_FUNCTION($vtype, $index);")
         }
 
         write(s"void ${kname}::run()")
         enter
-        write(s"void * kernel = this")
+        write(s"${kt.name} * kernel = this;")
         // Declare locals.
         for (l <- kt.states if l.isLocal) {
             val name = l.name
