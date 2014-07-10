@@ -6,15 +6,17 @@
 
 class Kernel;
 
-class EdgeBase
+class Edge
 {
 public:
     SPQ * queue;
+    int depth;
 
     Kernel * source;
     Kernel * dest;
-    
-    int size;
+
+    Edge(int depth, Kernel * source, Kernel * dest, size_t width);
+    ~Edge();
     int get_free();
     void * allocate();
     void send();
@@ -22,16 +24,6 @@ public:
     void * read_value();
     void release();
     void finish();
-};
-
-template <typename T>
-class Edge : public EdgeBase
-{
-public:
-
-    Edge(int depth, Kernel * source, Kernel * dest);
-    ~Edge();
-    
 };
 
 #endif // _EDGE_H_

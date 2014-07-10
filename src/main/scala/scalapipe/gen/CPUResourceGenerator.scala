@@ -908,7 +908,7 @@ private[scalapipe] class CPUResourceGenerator(
         // Write include files that we need.
         write("#include \"ScalaPipe.h\"")
         write("#include \"Kernel.cpp\"")
-        write("#include \"Edge.h\"")
+        write("#include \"Edge.cpp\"")
         write("#include \"Segment.cpp\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
@@ -1082,14 +1082,14 @@ private[scalapipe] class CPUResourceGenerator(
         
         // Initialize the edges.
         //write(edgeInit)
-        write(s"std::vector<EdgeBase*> edges;")
+        write(s"std::vector<Edge*> edges;")
         for (s <- sp.streams)
         {
             val source = s.sourceKernel.index
             val dest = s.destKernel.index
             val depth = s.parameters.get[Int]('queueDepth)
             val vtype = s.valueType
-            write(s"edges.push_back(new Edge<${vtype}>(${depth},modList[${source}],modList[${dest}]));")
+            write(s"edges.push_back(new Edge(${depth},modList[${source}],modList[${dest}],sizeof(${vtype})));")
             
             // Link the edges to the kernels
             write(s"modList[${source}]->outputs.push_back(edges.back());")

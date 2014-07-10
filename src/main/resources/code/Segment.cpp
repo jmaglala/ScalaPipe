@@ -3,7 +3,7 @@
 Segment::Segment(std::vector<Kernel*> & kernels) : kernelList(kernels) {
     //Build kernel list
     //this->kernelList = kernels;
-    /*for (int i = 0; i < kernels->size(); i++) {
+    /*for (int i = 0; i < kernels->depth(); i++) {
         kernelList.push_back(kernels[i]);
     }*/
     
@@ -33,10 +33,10 @@ Segment::Segment(std::vector<Kernel*> & kernels) : kernelList(kernels) {
     
     //Set input and output buffer sizes
     if (kernelList[0]->inputs.size() > 0) {
-        in_buf_size = kernelList.front()->inputs.front()->size;
+        in_buf_size = kernelList.front()->inputs.front()->depth;
     }
     if (kernelList.back()->outputs.size() > 0) {
-        out_buf_size = kernelList.back()->outputs.front()->size;
+        out_buf_size = kernelList.back()->outputs.front()->depth;
     }
     
     //Calculate the max times the segment can fire
@@ -107,7 +107,7 @@ void Segment::fire() {
             if (fired == true)
                 done = true;
             //If the one fire of this kern + the next buffer's current size < its total size then fire
-            else if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate < kernelList[fireKernelNum]->outputs.front()->size) {
+            else if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate < kernelList[fireKernelNum]->outputs.front()->depth) {
                 kernelList[fireKernelNum]->run();
                 fired = true;
                 //If the next kernel can fire after this kernel just fired, move to it
@@ -125,7 +125,7 @@ void Segment::fire() {
         //If it's a middle kernel
         else {
             //If the one fire of this kern + the next buffer's current size < its total size then fire
-            if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate < kernelList[fireKernelNum]->outputs.front()->size) {
+            if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate < kernelList[fireKernelNum]->outputs.front()->depth) {
                 kernelList[fireKernelNum]->run();
             }
             //If the next kernel can fire after this kernel just fired, move to it

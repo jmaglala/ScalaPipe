@@ -21,8 +21,8 @@ public:
     int state;
     int runtime;
  
-    std::vector<EdgeBase*> inputs;
-    std::vector<EdgeBase*> outputs;
+    std::vector<Edge*> inputs;
+    std::vector<Edge*> outputs;
     
     Kernel(int _in, int _out, int _state, int _rt) :
         id(kid++),inrate(_in), outrate(_out), state(_state), runtime(_rt)

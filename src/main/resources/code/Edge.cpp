@@ -2,14 +2,14 @@
 #define _EDGE_CPP_
 
 #include "Edge.h"
-template<typename T>
-Edge<T>::Edge(int _depth, Kernel * _source, Kernel * _dest)
+
+Edge::Edge(int _depth, Kernel * _source, Kernel * _dest, size_t width)
 {
-    sourc = _source;
+    source = _source;
     dest = _dest;
     depth = _depth;
-    queue = (SPQ*)malloc(spq_get_size(depth, sizeof(T)));
-    sqp_init(queue,depth,sizeof(T))
+    queue = (SPQ*)malloc(spq_get_size(depth, width));
+    spq_init(queue,depth,width);
 }
 
 Edge::~Edge()
@@ -22,9 +22,9 @@ int Edge::get_free()
     return spq_get_free(queue);
 }
 
-void Edge::alocate()
+void * Edge::allocate()
 {
-    spq_start_write(queue,1);
+    return spq_start_write(queue,1);
 }
 
 void Edge::send()
@@ -51,7 +51,7 @@ void Edge::release()
 
 void Edge::finish()
 {
-    sp_decrement(&dest.active_inputs)
+    sp_decrement(&dest->active_inputs);
 }
 
 #endif // _EDGE_CPP_
