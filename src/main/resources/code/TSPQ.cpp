@@ -1,7 +1,8 @@
 #include "TSPQ.h"
+#include <iostream>
 
 /** Initialize the queue. */
-TSPQ::TSPQ(uint32_t _depth, uint32_t _width)
+TSPQ::TSPQ(uint32_t _depth, size_t _width)
 {
     flags = 0;
     read_ptr.store(0);

@@ -12,7 +12,7 @@ class TSPQ : public SPQ
     std::atomic<uint32_t> wrap_ptr;
     
 public:
-    TSPQ(uint32_t depth, uint32_t width);
+    TSPQ(uint32_t depth, size_t width);
     ~TSPQ();
     void close();
     size_t get_size(uint32_t depth, uint32_t width);

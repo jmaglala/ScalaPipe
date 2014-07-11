@@ -1,7 +1,7 @@
 #include "SPQ.h"
 
 /** Initialize the queue. */
-SPQ::SPQ(uint32_t _depth, uint32_t _width)
+SPQ::SPQ(uint32_t _depth, size_t _width)
 {
     flags = 0;
     read_ptr = 0;

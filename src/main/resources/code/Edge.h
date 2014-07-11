@@ -2,6 +2,8 @@
 #define _EDGE_H_
 
 #include "ScalaPipe.h"
+#include "SPQ.h"
+#include "TSPQ.h"       
 //#include "Kernel.h"
 
 class Kernel;
@@ -9,7 +11,7 @@ class Kernel;
 class Edge
 {
 public:
-    SPQ * queue;
+    TSPQ * queue;
     int depth;
 
     Kernel * source;

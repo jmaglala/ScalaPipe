@@ -910,6 +910,8 @@ private[scalapipe] class CPUResourceGenerator(
         write("#include \"Kernel.cpp\"")
         write("#include \"Edge.cpp\"")
         write("#include \"Segment.cpp\"")
+        write("#include \"SPQ.cpp\"")
+        write("#include \"TSPQ.cpp\"")
         write("#include <pthread.h>")
         write("#include <signal.h>")
         write("#include <sstream>")

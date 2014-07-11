@@ -23,14 +23,14 @@ public:
     uint8_t pad3[4];
     
     uint32_t depth;     /**< Number of items that can be put in the queue. */
-    uint32_t width;     /**< Number of bytes for each element. */
+    size_t width;     /**< Number of bytes for each element. */
     
     uint8_t pad4[8];    /**< Make this structure 16-byte aligned. */
     char * data;
     
     SPQ(){}
     
-    SPQ(uint32_t depth, uint32_t width);
+    SPQ(uint32_t depth, size_t width);
     ~SPQ();
     
     void close();

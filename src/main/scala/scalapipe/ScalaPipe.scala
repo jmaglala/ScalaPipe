@@ -517,6 +517,10 @@ private[scalapipe] class ScalaPipe {
         RawFileGenerator.emitFile(dir, "Kernel.cpp")
         RawFileGenerator.emitFile(dir, "Edge.h")
         RawFileGenerator.emitFile(dir, "Edge.cpp")
+        RawFileGenerator.emitFile(dir, "SPQ.h")
+        RawFileGenerator.emitFile(dir, "SPQ.cpp")
+        RawFileGenerator.emitFile(dir, "TSPQ.h")
+        RawFileGenerator.emitFile(dir, "TSPQ.cpp")
 
         val fpga = parameters.get[String]('fpga)
         fpga match {
