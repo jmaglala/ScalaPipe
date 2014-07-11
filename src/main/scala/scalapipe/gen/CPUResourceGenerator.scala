@@ -1085,8 +1085,8 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"std::vector<Edge*> edges;")
         for (s <- sp.streams)
         {
-            val source = s.sourceKernel.index
-            val dest = s.destKernel.index
+            val source = s.sourceKernel.index - 1
+            val dest = s.destKernel.index - 1
             val depth = s.parameters.get[Int]('queueDepth)
             val vtype = s.valueType
             write(s"edges.push_back(new Edge(${depth},modList[${source}],modList[${dest}],sizeof(${vtype})));")

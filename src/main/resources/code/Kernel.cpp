@@ -41,8 +41,6 @@ int Kernel::get_available(int in_port)
         result = inputs[in_port]->get_available();
     spc_start(&clock);
     return result;
-    
-    
 }
 
 void * Kernel::read_value(int in_port)

@@ -7,7 +7,7 @@
 class Segment
 {
 public:
-    std::vector<Kernel*> & kernelList;         // The list of mod_ids
+    std::vector<Kernel*> kernelList;         // The list of mod_ids
     
     int id;              // An id from the scheudle
     

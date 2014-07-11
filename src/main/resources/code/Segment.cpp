@@ -1,4 +1,5 @@
 #include "Segment.h"
+#include <iostream>
 
 Segment::Segment(std::vector<Kernel*> & kernels) : kernelList(kernels) {
     //Build kernel list
@@ -64,7 +65,8 @@ bool Segment::isFireable(int * segFireCount, bool firstSegOnThread, bool lastSeg
         maxOutputFires = (out_buf_size - segFireCount[kernelList.back()->id])/output_rate;
     else
         maxOutputFires = 0;
-    
+    std::cout << "maxIn  " << maxInputFires << std::endl;
+    std::cout << "maxOut  " << maxOutputFires << std::endl;
     //If it's the first segment use its maximum output fires
     if (in_buf_size == 0) {
         segFireIterations = maxOutputFires;
