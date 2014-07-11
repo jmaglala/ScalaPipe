@@ -41,11 +41,11 @@ private[scalapipe] class CKernelGenerator(
         enter
         write("int * state_buffer;")
          
-        for (c <- kt.configs) {
+        /*for (c <- kt.configs) {
             val cname = c.name
             val vtype = c.valueType
             write(s"$vtype $cname;")
-        }
+        }*/
         for (s <- kt.states if !s.isLocal) {
             val sname = s.name
             val vtype = s.valueType

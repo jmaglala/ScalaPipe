@@ -7,7 +7,7 @@ Edge::Edge(int _depth, Kernel * _source, Kernel * _dest, size_t width)
 {
     source = _source;
     dest = _dest;
-    depth = _depth;
+    depth = _depth + 1;
     queue = (SPQ*)malloc(spq_get_size(depth, width));
     spq_init(queue,depth,width);
 }

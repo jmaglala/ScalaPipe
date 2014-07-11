@@ -758,7 +758,7 @@ private[scalapipe] class CPUResourceGenerator(
                 write("kernels.push_back(modList[i]);")
             leave
             write("}")
-            write(s"segmentList.push_back(new Segment(kernels));")
+            write(s"segmentList.push_back(new Segment(${segment.id-1}, kernels));")
             write("kernels.clear();")
         }
         
@@ -793,7 +793,7 @@ private[scalapipe] class CPUResourceGenerator(
                     enter
                         if (sp.parameters.get[Int]('debug) >= 1)
                             write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
-                        write(s"int segmentFireIterations = (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate};")
+                        write(s"int segmentFireIterations = segmentList[${i}]->fireIterations(segFireCount);")
 
                         //If the threshold is only 1 fire, then add to segFireCount on each fire
                         if (segment.threshold == 1) {
