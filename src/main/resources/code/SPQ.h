@@ -33,21 +33,21 @@ public:
     SPQ(uint32_t depth, size_t width);
     ~SPQ();
     
-    void close();
-    size_t get_size(uint32_t depth, uint32_t width);
-    bool is_valid();
-    bool is_closed();
-    bool is_empty();
-    int get_free();
-    int get_used();
-    int start_write_offset(uint32_t count);
-    char * start_write(uint32_t count);
-    char * start_blocking_write(uint32_t count);
-    void finish_write(uint32_t count);
-    uint32_t start_read_offset(int * offset);
-    uint32_t start_read(char ** buffer);
-    uint32_t start_blocking_read(char ** buffer);
-    void finish_read(uint32_t count);
+    virtual void close();
+    virtual size_t get_size(uint32_t depth, uint32_t width);
+    virtual bool is_valid();
+    virtual bool is_closed();
+    virtual bool is_empty();
+    virtual int get_free();
+    virtual int get_used();
+    virtual int start_write_offset(uint32_t count);
+    virtual char * start_write(uint32_t count);
+    virtual char * start_blocking_write(uint32_t count);
+    virtual void finish_write(uint32_t count);
+    virtual uint32_t start_read_offset(int * offset);
+    virtual uint32_t start_read(char ** buffer);
+    virtual uint32_t start_blocking_read(char ** buffer);
+    virtual void finish_read(uint32_t count);
 };
 
 #endif // __SPQ_H__

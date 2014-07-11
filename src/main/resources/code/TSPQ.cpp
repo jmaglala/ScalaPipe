@@ -1,5 +1,4 @@
 #include "TSPQ.h"
-#include <iostream>
 
 /** Initialize the queue. */
 TSPQ::TSPQ(uint32_t _depth, size_t _width)

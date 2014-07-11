@@ -11,7 +11,7 @@ class Kernel;
 class Edge
 {
 public:
-    TSPQ * queue;
+    SPQ * queue;
     int depth;
 
     Kernel * source;
