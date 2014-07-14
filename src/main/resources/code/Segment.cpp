@@ -96,12 +96,11 @@ void Segment::allocate_memory()
 //Determine if segment is fireable
 bool Segment::isFireable(int * segFireCount, bool firstSegOnThread, bool lastSegOnThread) {
     int segFireIterations = 0;
-    std::cout << "in_buf_size: " << in_buf_size << std::endl;
-    std::cout << "out_buf_size: " << out_buf_size << std::endl;
-    std::cout << "input_rate: " << input_rate << std::endl;
-    std::cout << "output_rate: " << output_rate << std::endl;
-    if (kernelList.back()->outputs.size() > 0)
-        std::cout << "out_avail: " << kernelList.back()->outputs[0]->get_available() << std::endl;
+    //std::cout << "in_buf_size: " << in_buf_size << std::endl;
+    //std::cout << "out_buf_size: " << out_buf_size << std::endl;
+    //std::cout << "input_rate: " << input_rate << std::endl;
+    //std::cout << "output_rate: " << output_rate << std::endl;
+    
     //Get maximum times it can fire from the input
     int maxInputFires = 0;
     if (firstSegOnThread && in_buf_size > 0) {
@@ -126,7 +125,7 @@ bool Segment::isFireable(int * segFireCount, bool firstSegOnThread, bool lastSeg
     }
     else
         maxOutputFires = 0;
-    std::cout << maxInputFires << " " << maxOutputFires << std::endl;
+    //std::cout << maxInputFires << " " << maxOutputFires << std::endl;
     //If it's the first segment use its maximum output fires
     if (in_buf_size == 0) {
         segFireIterations = maxOutputFires;
@@ -142,7 +141,7 @@ bool Segment::isFireable(int * segFireCount, bool firstSegOnThread, bool lastSeg
     
     if (segFireIterations == 0 || segFireIterations < max_fires * .5)
         return false;
-    std::cout << "isFireable seg iters: " << segFireIterations << std::endl;
+    //std::cout << "isFireable seg iters: " << segFireIterations << std::endl;
     return true;
 }
 
@@ -181,21 +180,21 @@ void Segment::fire() {
                 done = true;
             //If the one fire of this kern + the next buffer's current size < its total size then fire
             else if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->depth) {
-                std::cout << "firing first kern" << std::endl;
+                //std::cout << "firing first kern" << std::endl;
                 kernelList[fireKernelNum]->run();
                 fired = true;
                 //If the next kernel can fire after this kernel just fired, move to it
-                std::cout << "next avail: " << kernelList[fireKernelNum+1]->get_available(0) << std::endl;
-                std::cout << "next inrate: " << kernelList[fireKernelNum+1]->inrate << std::endl;
+                //std::cout << "next avail: " << kernelList[fireKernelNum+1]->get_available(0) << std::endl;
+                //std::cout << "next inrate: " << kernelList[fireKernelNum+1]->inrate << std::endl;
                 if (kernelList[fireKernelNum+1]->get_available(0) >= kernelList[fireKernelNum+1]->inrate) {
                     fireKernelNum++;
-                    std::cout << "moving on" << std::endl;
+                    //std::cout << "moving on" << std::endl;
                 }
             }
         }
         //If it's the last kernel
         else if (fireKernelNum == kernelList.size() - 1) {
-            std::cout << "last kernel" << std::endl;
+            //std::cout << "last kernel" << std::endl;
             kernelList[fireKernelNum]->run();
             //If it doesn't have enough input for another fire, move back
             if (kernelList[fireKernelNum]->get_available(0) < kernelList[fireKernelNum]->inrate)
@@ -203,7 +202,7 @@ void Segment::fire() {
         }
         //If it's a middle kernel
         else {
-            std::cout << "kernel " << fireKernelNum + 1 << std::cout;
+            //std::cout << "kernel " << fireKernelNum + 1 << std::cout;
             //If the one fire of this kern + the next buffer's current size < its total size then fire
             if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->depth) {
                 kernelList[fireKernelNum]->run();

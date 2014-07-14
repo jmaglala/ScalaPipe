@@ -180,7 +180,6 @@ char * SPQ::start_blocking_write(uint32_t count)
         if(ptr != NULL) {
             return ptr;
         }
-        sched_yield();
     }
 }
 
@@ -249,7 +248,6 @@ uint32_t SPQ::start_blocking_read(char ** buffer)
         if(rc > 0) {
             return rc;
         }
-        sched_yield();
     }
 }
 
