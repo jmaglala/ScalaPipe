@@ -1,19 +1,14 @@
 package scalapipe.map
 
-
 import scala.math
 import scalapipe._
 import scalapipe.dsl._
 import scalapipe.dsl.SPSegment
 
-// Helpers to dertmine cache size
-
-
 private[scalapipe] class RuntimeSegMapper(
     val _sp: ScalaPipe
-    ) extends Mapper(_sp) with AugmentBuffer
+) extends Mapper(_sp) with MinBufResize
 {
-
     // Greedily Creates segments of size at most M
     def create_segments() : Unit = 
     {
@@ -39,7 +34,7 @@ private[scalapipe] class RuntimeSegMapper(
                 min_rt :+= Array[Array[Int]](0)
             }
         }
-        
+
         var min_k = 0
         var t_min_rt = 0
         for (i <- 0 to (procs-1)) {
@@ -57,36 +52,10 @@ private[scalapipe] class RuntimeSegMapper(
             }
         }
     }
-
+    
     def assign_segments_to_cores() : Unit = {
-        val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
-        val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
-        var segNum = 0
-        if (sp.parameters.get[Int]('debug) >= 2) {
-            println("ASSIGNING SEGS TO CORES")
-            println("Min SegPerCore: " + segPerCore)
-        }
-        for (i <- 0 to (sp.parameters.get[Int]('cores)-1)) {
-            if (sp.parameters.get[Int]('debug) >= 2)
-                print("Core " + i + ": ")
-            for (j <- 1 to segPerCore) {
-                if (sp.parameters.get[Int]('debug) >= 2)
-                    print(segNum + " ")
-                sp.segments(segNum).tid = i
-                segNum += 1
-            }
-            if (i < (extraSegs)) {
-                if (sp.parameters.get[Int]('debug) >= 2)
-                    print(segNum + " ")
-                sp.segments(segNum).tid = i
-                segNum += 1
-            }
-            if (sp.parameters.get[Int]('debug) >= 2)
-                println()
-        }
-        if (sp.parameters.get[Int]('debug) >= 2)
-            println("DONE ASSIGNING SEGS TO CORES")
+        //Since there are as many segments as cores, assign segment i to core i
+        for (i <- 0 to sp.segments.length-1)
+            sp.segments(i).tid = i
     }
-    
-    
 }

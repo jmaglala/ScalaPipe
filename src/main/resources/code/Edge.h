@@ -26,6 +26,9 @@ public:
     void * read_value();
     void release();
     void finish();
+    
+    size_t get_size();
+    void set_buff(char * buff);
 };
 
 #endif // _EDGE_H_

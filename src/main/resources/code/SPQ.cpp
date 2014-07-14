@@ -17,6 +17,14 @@ SPQ::~SPQ()
 {
     free(data);
 }
+
+void SPQ::set_buff(char * buff)
+{
+    
+    free(data);    
+    data = buff;
+}
+
 /** Mark the queue as closed. */
 void SPQ::close()
 {
@@ -24,9 +32,9 @@ void SPQ::close()
 }
 
 /** Determine how many bytes are needed for the specified queue. */
-size_t SPQ::get_size(uint32_t depth, uint32_t width)
+size_t SPQ::get_size()
 {
-    return sizeof(SPQ) + depth * width;
+    return depth * width;
 }
 
 /** Determine if the queue is valid. */
@@ -250,3 +258,4 @@ void SPQ::finish_read(uint32_t count)
 {
     read_ptr += count;
 }
+

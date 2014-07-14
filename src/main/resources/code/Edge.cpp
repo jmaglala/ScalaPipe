@@ -3,9 +3,8 @@
 
 #include "Edge.h"
 
-Edge::Edge(int _depth, Kernel * _source, Kernel * _dest, size_t width)
+Edge::Edge(int _depth, Kernel * _source, Kernel * _dest, size_t width) : queue(new SPQ(_depth + 1, width))
 {
-    queue = new SPQ(_depth + 1, width);
     source = _source;
     dest = _dest;
     depth = _depth + 1;
@@ -53,6 +52,16 @@ void Edge::release()
 void Edge::finish()
 {
     //sp_decrement(&dest->active_inputs);
+}
+
+size_t Edge::get_size()
+{
+    return queue->get_size();
+}
+
+void Edge::set_buff(char * buff)
+{
+    queue->set_buff(buff);
 }
 
 #endif // _EDGE_CPP_
