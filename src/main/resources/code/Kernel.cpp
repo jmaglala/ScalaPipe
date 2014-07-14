@@ -57,14 +57,7 @@ void * Kernel::read_value(int in_port)
             spc_start(&clock);
             return ptr;
         }
-        if(SPUNLIKELY(active_inputs == 0))
-        {
-            if (end_count > 1) {
-                longjmp(env,1);
-            }
-            end_count++;
-        }
-        sched_yield();
+        
     }
 }
 
