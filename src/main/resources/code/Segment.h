@@ -26,7 +26,7 @@ public:
     
     uint8_t *        buff;
     
-    Segment(int, std::vector<Kernel*> kernels);
+    Segment(int, std::vector<Kernel*> & kernels);
     bool isFireable(int *, bool, bool);
     int fireIterations(int *);
     void fire();

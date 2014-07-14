@@ -30,7 +30,7 @@ private[scalapipe] class RuntimeSegMapper(
         //Populate lists with appropriate information
         for (i <- 0 to (modules.length-1)) {
             var kernel_rt = modules(i).kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
-            mod_rt(i) = kernel_rt
+            mod_rt :+= kernel_rt
 
             min_ids :+= Array[Int]()
             min_rt :+= Array[Int]()
