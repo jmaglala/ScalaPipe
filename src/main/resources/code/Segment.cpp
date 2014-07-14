@@ -12,6 +12,9 @@ Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelL
     state = 0;
     runtime = 0;
     output_rate = 1;
+    threshold = 1;
+    in_buf_size = 0;
+    out_buf_size = 0;
     
     //Set input rate, output rate, state, and runtime
     if (kernelList.front()->id != 0)
@@ -38,8 +41,7 @@ Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelL
         }
     }
     
-    in_buf_size = 0;
-    out_buf_size = 0;
+    
     //Set input and output buffer sizes
     if (kernelList[0]->inputs.size() > 0) {
         in_buf_size = kernelList.front()->inputs.front()->depth;
@@ -127,6 +129,11 @@ void Segment::fire() {
     bool done = false;
     int fireKernelNum = 0;
     //std::cout << "start fire func" << std::endl;
+    if (kernelList.size() == 1) {
+        //std::cout << "single kern" << std::endl;
+        kernelList[0]->run();
+        return;
+    }
     while (done == false) {
         //If it's the first kernel
         if (fireKernelNum == 0) {
@@ -163,7 +170,7 @@ void Segment::fire() {
         }
         //If it's a middle kernel
         else {
-            //std::cout << "kernel " << kernelList[fireKernelNum]->id << std::endl;
+            //std::cout << "Seg" << id << " kernel " << kernelList[fireKernelNum]->id << std::endl;
             /*std::cout << "avail: " << kernelList[fireKernelNum]->get_available(0) << std::endl;
             std::cout << "inrate: " << kernelList[fireKernelNum]->inrate << std::endl;
             std::cout << "outrate: " << kernelList[fireKernelNum]->outrate << std::endl;

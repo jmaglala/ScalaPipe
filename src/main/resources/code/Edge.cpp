@@ -3,8 +3,9 @@
 
 #include "Edge.h"
 
-Edge::Edge(int _depth, Kernel * _source, Kernel * _dest, size_t width) : queue(new TSPQ(_depth + 1, width))
+Edge::Edge(int _depth, Kernel * _source, Kernel * _dest, size_t width)
 {
+    queue = new SPQ(_depth + 1, width);
     source = _source;
     dest = _dest;
     depth = _depth + 1;

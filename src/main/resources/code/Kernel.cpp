@@ -13,7 +13,6 @@ int Kernel::get_free(int out_port)
 
 void * Kernel::allocate(int out_port)
 {
-    spc_stop(&clock);
     void *ptr = NULL;
     for(;;) {
         ptr = outputs[out_port]->allocate();

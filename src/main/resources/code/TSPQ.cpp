@@ -27,7 +27,7 @@ void TSPQ::close()
 /** Determine how many bytes are needed for the specified queue. */
 size_t TSPQ::get_size(uint32_t depth, uint32_t width)
 {
-    return sizeof(SPQ) + depth * width;
+    return sizeof(TSPQ) + depth * width;
 }
 
 /** Determine if the queue is valid. */
