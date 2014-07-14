@@ -24,7 +24,7 @@ private[scalapipe] class RuntimeSegMapper(
         //Module runtime from source
         var mod_rt = Seq[Int]()
         
-        var min_ids = Array[Array[Int]]()
+        var min_ids = Array[Array[Array[Int]]]()
         var min_rt = Array[Array[Int]]()
         
         //Populate lists with appropriate information
@@ -32,13 +32,30 @@ private[scalapipe] class RuntimeSegMapper(
             var kernel_rt = modules(i).kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
             mod_rt :+= kernel_rt
 
-            min_ids :+= Array[Int]()
-            min_rt :+= Array[Int]()
+        }
+        for (i <- 0 to (procs-1)) {
+            for (j <- 0 to (mods-1)) {
+                min_ids :+= Array[Array[Array[Int]]]()
+                min_rt :+= Array[Array[Int]](0)
+            }
         }
         
-        println("mod_rt " + mod_rt)
-        println("min_ids " + min_ids)
-        println("min_rt " + min_rt)
+        var min_k = 0
+        var t_min_rt = 0
+        for (i <- 0 to (procs-1)) {
+            for (j <- 0 to (mods-1)) {
+                if (i == 0) {
+                    min_rt(i)(j) = mod_rt.slice(0,j+1).sum
+                }
+                else if (j == 0) {
+                    min_rt(i)(j) = 0
+                }
+                else {
+                    min_k = j
+                    t_min_rt = min_rt(i-1)(j)
+                }
+            }
+        }
     }
 
     def assign_segments_to_cores() : Unit = {
