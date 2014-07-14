@@ -24,11 +24,17 @@ public:
     std::vector<Edge*> inputs;
     std::vector<Edge*> outputs;
     
+    uint8_t * state_buff;
+    
     Kernel(int _in, int _out, int _state, int _rt) :
         id(kid++),inrate(_in), outrate(_out), state(_state), runtime(_rt)
     {}
     ~Kernel()
     {}
+    
+    void set_state(uint8_t * buff);
+    void load();
+    void init();
     
     virtual void run() = 0;
     

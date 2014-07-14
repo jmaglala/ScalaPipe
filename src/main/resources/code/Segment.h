@@ -26,10 +26,13 @@ public:
     
     uint8_t *        buff;
     
-    Segment(int, std::vector<Kernel*> kernels);
+    Segment(int id,std::vector<Kernel*> & kernels);
     bool isFireable(int *, bool, bool);
     int fireIterations(int *);
     void fire();
+
+private:
+    void allocate_memory();     // Allocate memory for the kernel states and internal edges
 };
 
 #endif // _SEGMENT_H_

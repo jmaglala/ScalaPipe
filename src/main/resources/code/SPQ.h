@@ -33,8 +33,10 @@ public:
     SPQ(uint32_t depth, size_t width);
     ~SPQ();
     
+    void set_buff(char * buff);
+    
     virtual void close();
-    virtual size_t get_size(uint32_t depth, uint32_t width);
+    virtual size_t get_size();
     virtual bool is_valid();
     virtual bool is_closed();
     virtual bool is_empty();

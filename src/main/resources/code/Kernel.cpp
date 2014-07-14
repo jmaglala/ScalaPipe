@@ -56,4 +56,24 @@ void Kernel::release(int in_port)
     inputs[in_port]->release();
 }
 
+void Kernel::set_state(uint8_t * buff)
+{
+    state_buff = buff;
+}
+
+void Kernel::load()
+{
+    volatile int curr = 0;
+    for (int i=0;i<state;i++)
+    {
+        curr += state_buff[i];
+    }
+}
+
+void Kernel::init()
+{
+    for(int i=0;i<state;i++)
+        state_buff[i] = i;
+}
+
 #endif
