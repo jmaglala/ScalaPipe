@@ -139,7 +139,7 @@ private[scalapipe] class CKernelGenerator(
         for (o <- kt.outputs) {
             val name = o.name
             val vtype = o.valueType
-            write(s"$vtype *$name;")
+            write(s"$vtype $name;")
         }
 
         // Write out the verbatim code

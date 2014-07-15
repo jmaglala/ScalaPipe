@@ -186,6 +186,7 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         {
             val count = cross_buff(s)
             s.parameters.set('queueDepth, count)    
+            s.parameters.set('crossedge, true)
         }
         if (sp.parameters.get[Int]('debug) >= 2)
             println("DONE WITH CROSS BUFFERS")

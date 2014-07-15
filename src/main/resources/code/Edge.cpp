@@ -1,67 +1,30 @@
-#ifndef _EDGE_CPP_
-#define _EDGE_CPP_
+#ifndef __EDGE_CPP__
+#define __EDGE_CPP__
 
 #include "Edge.h"
 
-Edge::Edge(int _depth, Kernel * _source, Kernel * _dest, size_t width) : queue(new SPQ(_depth + 1, width))
+uint64_t Edge::get_size()
 {
-    source = _source;
-    dest = _dest;
-    depth = _depth + 1;
-    //queue = (SPQ*)malloc(spq_get_size(depth, width));
-    //spq_init(queue,depth,width);
+    return this->m_size * sizeof(int);
 }
 
-Edge::~Edge()
+bool Edge::is_initd()
 {
-    free(queue);
+    return this->m_initialized;
 }
 
-int Edge::get_free()
+void Edge::set_buff(int * buff)
 {
-    return queue->get_free();
+    if (buff == NULL)
+        posix_memalign((void**)&this->m_buff,ALIGN, this->get_size());
+    else
+        this->m_buff = buff;
+    this->m_initialized = true;
 }
 
-void * Edge::allocate()
+uint64_t Edge::get_free()
 {
-    return queue->start_write(1);
+    return this->m_size - this->get_available();
 }
 
-void Edge::send()
-{
-    queue->finish_write(1);
-}
-
-int Edge::get_available()
-{
-    return queue->get_used();
-}
-
-void * Edge::read_value()
-{
-    char *buffer = NULL;
-    if (queue->start_read(&buffer) > 0)
-        return buffer;
-    return NULL;
-}
-void Edge::release()
-{
-    queue->finish_read(1);
-}
-
-void Edge::finish()
-{
-    //sp_decrement(&dest->active_inputs);
-}
-
-size_t Edge::get_size()
-{
-    return queue->get_size();
-}
-
-void Edge::set_buff(char * buff)
-{
-    queue->set_buff(buff);
-}
-
-#endif // _EDGE_CPP_
+#endif // __EDGE_CPP__

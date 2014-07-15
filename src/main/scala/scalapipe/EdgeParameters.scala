@@ -6,5 +6,6 @@ private[scalapipe] class EdgeParameters(
 
     add('queueDepth, defaults.get[Int]('queueDepth))
     add('fpgaQueueDepth, defaults.get[Int]('fpgaQueueDepth))
+    add('crossedge,false)
 
 }
