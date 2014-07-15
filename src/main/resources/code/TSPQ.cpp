@@ -11,6 +11,7 @@ TSPQ::TSPQ(uint64_t size)
     m_write_pos.store(0);
     m_count.store(0);
     this->m_initialized = false;
+    this->set_buff(NULL);
 }
 
 
