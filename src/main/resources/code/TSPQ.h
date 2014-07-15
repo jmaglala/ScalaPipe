@@ -1,35 +1,45 @@
+/*
+ */
+
 #ifndef __TSPQ_H__
 #define __TSPQ_H__
 
+#ifndef ALIGN
+#define ALIGN 64
+#endif
+
 #include <stdint.h>
 #include <atomic>
-#include "SPQ.h"
+#include <vector>
+#include <iostream>
+#include <thread>
 
-class TSPQ : public SPQ
+#include "Edge.h"
+
+class TSPQ : public Edge
 {
-    std::atomic<uint32_t> read_ptr;
-    std::atomic<uint32_t> write_ptr;
-    std::atomic<uint32_t> wrap_ptr;
+protected:
+    
+    // Pointers
+    std::atomic<uint64_t> m_read_pos;
+    std::atomic<uint64_t> m_write_pos;
+    
+    // helper count
+    std::atomic<uint64_t> m_count;
+    
     
 public:
-    TSPQ(uint32_t depth, size_t width);
-    ~TSPQ();
-    void close();
-    size_t get_size(uint32_t depth, uint32_t width);
-    bool is_valid();
-    bool is_closed();
-    bool is_empty();
-    int get_free();
-    int get_used();
-    int start_write_offset(uint32_t count);
-    char * start_write(uint32_t count);
-    char * start_blocking_write(uint32_t count);
-    void finish_write(uint32_t count);
-    uint32_t start_read_offset(int * offset);
-    uint32_t start_read(char ** buffer);
-    uint32_t start_blocking_read(char ** buffer);
-    void finish_read(uint32_t count);
-};
+    int read();
+    void write(const int val);
+    
+    bool ready(uint64_t change, bool writing);
+    bool full();
+    bool empty();
+    
+    uint64_t get_available();
 
+    TSPQ(uint64_t size);
+    ~TSPQ();
+};
 
 #endif // __TSPQ_H__

@@ -1091,7 +1091,7 @@ private[scalapipe] class CPUResourceGenerator(
             val dest = s.destKernel.index - 1
             val depth = s.parameters.get[Int]('queueDepth)
             val vtype = s.valueType
-            write(s"edges.push_back(new Edge(${depth},modList[${source}],modList[${dest}],sizeof(${vtype})));")
+            write(s"edges.push_back(new SPQ(${depth}));")
             
             // Link the edges to the kernels
             write(s"modList[${source}]->outputs.push_back(edges.back());")

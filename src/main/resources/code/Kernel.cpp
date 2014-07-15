@@ -11,7 +11,7 @@ int Kernel::get_free(int out_port)
     return outputs[out_port]->get_free();
 }
 
-void * Kernel::allocate(int out_port)
+/*void * Kernel::allocate(int out_port)
 {
     void *ptr = NULL;
     for(;;) {
@@ -21,12 +21,12 @@ void * Kernel::allocate(int out_port)
             return ptr;
         }
     }
-}
+}*/
 
-void Kernel::send(int out_port)
+/*void Kernel::send(int out_port)
 {
     outputs[out_port]->send();
-}
+}*/
 
 int Kernel::get_available(int in_port)
 {
@@ -36,13 +36,13 @@ int Kernel::get_available(int in_port)
     return result;
 }
 
-void * Kernel::read_value(int in_port)
+int * Kernel::read_value(int in_port)
 {
-    void *ptr = NULL;
+    int *ptr = NULL;
     int end_count = 0;
     for(;;)
     {
-        ptr = inputs[in_port]->read_value();
+        *ptr = inputs[in_port]->read();
         if(SPLIKELY(ptr != NULL))
         {
             clock.count += 1;
@@ -51,10 +51,10 @@ void * Kernel::read_value(int in_port)
     }
 }
 
-void Kernel::release(int in_port)
+/*void Kernel::release(int in_port)
 {
     inputs[in_port]->release();
-}
+}*/
 
 void Kernel::set_state(uint8_t * buff)
 {

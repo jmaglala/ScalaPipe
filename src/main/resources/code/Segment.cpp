@@ -5,7 +5,7 @@ static int sid = 0;
 Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelList(kernels) {
     //Build kernel list
     //this->kernelList = kernels;
-    /*for (int i = 0; i < kernels->depth(); i++) {
+    /*for (int i = 0; i < kernels->m_size(); i++) {
         kernelList.push_back(kernels[i]);
     }*/
     
@@ -44,10 +44,10 @@ Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelL
     
     //Set input and output buffer sizes
     if (kernelList[0]->inputs.size() > 0) {
-        in_buf_size = kernelList.front()->inputs.front()->depth;
+        in_buf_size = kernelList.front()->inputs.front()->m_size;
     }
     if (kernelList.back()->outputs.size() > 0) {
-        out_buf_size = kernelList.back()->outputs.front()->depth;
+        out_buf_size = kernelList.back()->outputs.front()->m_size;
     }
     
     //Calculate the max times the segment can fire
@@ -93,7 +93,7 @@ void Segment::allocate_memory()
         addr += kernelList[i]->state * sizeof(uint8_t);
         if (i != kernelList.size() -1)
         {
-            kernelList[i]->outputs[0]->set_buff((char *)&buff[addr]);
+            kernelList[i]->outputs[0]->set_buff((int *)&buff[addr]);
             addr += kernelList[i]->outputs[0]->get_size();
         }
     }
@@ -177,14 +177,14 @@ void Segment::fire() {
             //std::cout << "first kern" << std::endl;
             //std::cout << "avail: " << kernelList[fireKernelNum+1]->get_available(0) << std::endl;
             //std::cout << "outRate: " << kernelList[fireKernelNum]->outrate << std::endl;
-            //std::cout << "depth: " << kernelList[fireKernelNum]->outputs.front()->depth << std::endl;
+            //std::cout << "m_size: " << kernelList[fireKernelNum]->outputs.front()->m_size << std::endl;
             //End if this segment has already fired
             if (fired == true) {
                 //std::cout << "done firing" << std::endl;
                 done = true;
             }
             //If the one fire of this kern + the next buffer's current size < its total size then fire
-            else if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->depth) {
+            else if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->m_size) {
                 //std::cout << "first kernel" << std::endl;
                 kernelList[fireKernelNum]->run();
                 fired = true;
@@ -214,7 +214,7 @@ void Segment::fire() {
             std::cout << "next avail: " << kernelList[fireKernelNum+1]->get_available(0) << std::endl;
             std::cout << "next inrate: " << kernelList[fireKernelNum+1]->inrate << std::endl;*/
             //If there is space in the output buffer for a fire and it has input,
-            if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->depth &&
+            if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->m_size &&
                 kernelList[fireKernelNum]->get_available(0) >= kernelList[fireKernelNum]->inrate) {
                 kernelList[fireKernelNum]->run();
                 /*std::cout << "---------------------------------------" << std::endl;
@@ -231,7 +231,7 @@ void Segment::fire() {
             }
             //If it doesn't have enough input for another fire, move back
             else if (kernelList[fireKernelNum]->get_available(0) <= kernelList[fireKernelNum]->inrate ||
-                kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate > kernelList[fireKernelNum]->outputs.front()->depth) {
+                kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate > kernelList[fireKernelNum]->outputs.front()->m_size) {
                 fireKernelNum--;
             }
         }

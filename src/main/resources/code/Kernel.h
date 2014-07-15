@@ -39,11 +39,11 @@ public:
     virtual void run() = 0;
     
     int get_free(int out_port);
-    void * allocate(int out_port);
-    void send(int out_port);
+    //void * allocate(int out_port);
+    //void send(int out_port);
     int get_available(int in_port);
-    void * read_value(int in_port);
-    void release(int in_port);
+    int * read_value(int in_port);
+    //void release(int in_port);
 };
 
 #endif // _KERNEL_H_
