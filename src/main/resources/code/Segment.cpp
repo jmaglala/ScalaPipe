@@ -127,6 +127,7 @@ bool Segment::isFireable(int * segFireCount, bool firstSegOnThread, bool lastSeg
     }
     else
         maxOutputFires = 0;
+    
     //If it's the first segment use its maximum output fires
     if (in_buf_size == 0) {
         segFireIterations = maxOutputFires;
@@ -140,16 +141,15 @@ bool Segment::isFireable(int * segFireCount, bool firstSegOnThread, bool lastSeg
         segFireIterations = std::min(maxInputFires, maxOutputFires);
     }
     
+    //If its segFireIterations is < than half of its max fires, return false
     if (segFireIterations < max_fires * .5)
         return false;
-    //std::cout << "isFireable seg iter =: " << "maxInputFires: " << maxInputFires << " maxOutputFires: " << maxOutputFires << std::endl;
     return true;
 }
 
 int Segment::fireIterations(int * segFireCount) {
     //If it's the first segment, return the amount of times the output can fire
     if (in_buf_size == 0) {
-        //std::cout << "segId: " << id << std::endl;
         return (out_buf_size - segFireCount[id])/output_rate;
     }
     //If it's the last segment, return the amount of times the input can fire
@@ -165,9 +165,9 @@ void Segment::fire() {
     bool fired = false;
     bool done = false;
     int fireKernelNum = 0;
-    //std::cout << "start fire func" << std::endl;
+    
+    //If there's only one kernel, fire it and return
     if (kernelList.size() == 1) {
-        //std::cout << "single kern" << std::endl;
         kernelList[0]->run();
         return;
     }
