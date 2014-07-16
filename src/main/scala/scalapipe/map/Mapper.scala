@@ -66,7 +66,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
             else {
             kernel_gain *= modules(i).kernelType.configs.filter(c => c.name == "outrate").head.value.long.toInt
             kernel_gain /= modules(i).kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
-            var min_buff_size = modules(i).getInputs(0).parameters.get[Int]('queueDepth)
+            var min_buff_size = modules(i).getInputs(0).parameters.get[Int]('queueDepth) * 4
             edge_size :+= min_buff_size
             }
             var kernel_state = modules(i).kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
@@ -95,7 +95,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
                     t_size = mod_size.slice(j,i+1).sum
                     var mod_start = modules(j)
                     var mod_end = modules(i)
-                    t_size += edge_size.slice(i,j+1).sum
+                    t_size += edge_size.slice(j,i).sum
                     if (t_size <= cacheSize) {
                         var t_cost = mod_rates(i)
                         if (j-1 >= 0) {
