@@ -52,16 +52,22 @@ bool SPQ::full()
     return (m_write_pos + 1) % this->m_size == m_read_pos;
 }
 
+// A blocking read
 int SPQ::read()
 {
+    while(empty())
+        ;
     int ret = this->m_buff[m_read_pos];
     m_read_pos = (m_read_pos + 1) % this->m_size;
     m_count--;
     return ret;
 }
 
+// A blocking write
 void SPQ::write(const int val)
 {
+    while(full())
+        ;
     this->m_buff[m_write_pos] = val;
     m_write_pos = (m_write_pos + 1) % this->m_size;
     m_count++;
