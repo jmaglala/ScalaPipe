@@ -60,15 +60,15 @@ Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelL
     //and set count thresholds to update adjacent segment's fireability
     if (in_buf_size == 0) {
         max_fires = out_buf_size/output_rate;
-        write_count_threshold = max_fires * .5;
+        write_count_threshold = max_fires;
     }
     else if (out_buf_size == 0) {
         max_fires = in_buf_size/input_rate;
-        read_count_threshold = max_fires * .5;
+        read_count_threshold = max_fires;
     }
     else {
-        write_count_threshold = out_buf_size/output_rate * .5;
-        read_count_threshold = in_buf_size/input_rate * .5;
+        write_count_threshold = out_buf_size/output_rate;
+        read_count_threshold = in_buf_size/input_rate;
         max_fires = std::min(in_buf_size/input_rate, out_buf_size/output_rate);
     }
     
@@ -118,51 +118,27 @@ void Segment::allocate_memory()
 }
 
 //Determine if segment is fireable
-bool Segment::isFireable(int * segFireCount, bool firstSegOnThread, bool lastSegOnThread) {
-    int segFireIterations = 0;
+bool Segment::isFireable() {
     /*std::cout << "in_buf_size: " << in_buf_size << std::endl;
     std::cout << "out_buf_size: " << out_buf_size << std::endl;
     std::cout << "input_rate: " << input_rate << std::endl;
     std::cout << "output_rate: " << output_rate << std::endl;
     std::cout << "out_avail: " << kernelList.back()->outputs[0]->get_available() << std::endl;*/
-    //Get maximum times it can fire from the input
-    int maxInputFires = 0;
-    if (firstSegOnThread && in_buf_size > 0) {
-        maxInputFires = kernelList.front()->get_available(0)/input_rate;
-    }
-    else if (in_buf_size > 0) {
-        maxInputFires = segFireCount[id-1]/input_rate;
-    }
-    else
-        maxInputFires = 0;
-    //Get maximum times it can fire into the output
-    int maxOutputFires = 0;
-    if (lastSegOnThread && out_buf_size > 0) {
-        maxOutputFires = (out_buf_size - kernelList.back()->outputs[0]->get_available())/output_rate;
-    }
-    else if (out_buf_size > 0) {
-        maxOutputFires = (out_buf_size - segFireCount[id])/output_rate;
-    }
-    else
-        maxOutputFires = 0;
     
     //If it's the first segment use its maximum output fires
     if (in_buf_size == 0) {
-        segFireIterations = maxOutputFires;
+        //std::cout << "first segment " << id << std::endl;
+        return write_buf_fireable;
     }
     //If it's the last segment use its maximum input fires
     else if (out_buf_size == 0) {
-        segFireIterations = maxInputFires;
+        //std::cout << "last segment " << id << std::endl;
+        return read_buf_fireable;
     }
     //If it's a middle segment, take the minimum
     else {
-        segFireIterations = std::min(maxInputFires, maxOutputFires);
+        return write_buf_fireable && read_buf_fireable;
     }
-    
-    //If its segFireIterations is < than half of its max fires, return false
-    if (segFireIterations < max_fires * .5)
-        return false;
-    return true;
 }
 
 int Segment::fireIterations(int * segFireCount) {
@@ -179,6 +155,34 @@ int Segment::fireIterations(int * segFireCount) {
     }
 }
 
+void Segment::update_next_seg() {
+    if (write_count == write_count_threshold * .5) {
+        std::cout << "Seg" << id << " notify next seg" << std::endl;
+        next_seg->read_buf_fireable = true;
+        //std::cin.get();
+    }
+    else if (write_count == write_count_threshold) {
+        std::cout << "Seg" << id << " reset write" << std::endl;
+        write_buf_fireable = false;
+        write_count = 0;
+        //std::cin.get();
+    }
+}
+
+void Segment::update_prev_seg() {
+    if (read_count == read_count_threshold * .5) {
+        std::cout << "Seg" << id << " notify prev kernel" << std::endl;
+        prev_seg->write_buf_fireable = true;
+        //std::cin.get();
+    }
+    else if (read_count == read_count_threshold) {
+        std::cout << "Seg" << id << " reset read" << std::endl;
+        read_buf_fireable = false;
+        read_count = 0;
+        //std::cin.get();
+    }
+}
+
 void Segment::fire() {
     bool fired = false;
     bool done = false;
@@ -186,9 +190,15 @@ void Segment::fire() {
     
     //If there's only one kernel, fire it and return
     if (kernelList.size() == 1) {
-        read_count++;
+        if (in_buf_size > 0) {
+            read_count++;
+            update_prev_seg();
+        }
         kernelList[0]->run();
-        write_count++;
+        if (out_buf_size > 0) {
+            write_count++;
+            update_next_seg();
+        }
         return;
     }
     while (done == false) {
@@ -201,25 +211,18 @@ void Segment::fire() {
             //End if this segment has already fired
             if (fired == true) {
                 //std::cout << "done firing" << std::endl;
-                if (out_buf_size != 0) {
+                if (out_buf_size > 0) {
                     write_count++;
-                    if (write_count == write_count_threshold) {
-                        next_seg->read_buf_fireable = true;
-                        std::cin.get();
-                    }
+                    update_next_seg();
                 }
-                write_count++;
                 done = true;
             }
             //If the one fire of this kern + the next buffer's current size < its total size then fire
             else if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->m_size) {
                 //std::cout << "first kernel" << std::endl;
-                if (in_buf_size != 0) {
+                if (in_buf_size > 0) {
                     read_count++;
-                    if (read_count == read_count_threshold) {
-                        prev_seg->write_buf_fireable = true;
-                        std::cin.get();
-                    }
+                    update_prev_seg();
                 }
                 kernelList[fireKernelNum]->run();
                 fired = true;

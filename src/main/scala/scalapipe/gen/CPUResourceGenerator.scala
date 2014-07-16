@@ -775,7 +775,7 @@ private[scalapipe] class CPUResourceGenerator(
                         lastSegOnThread = true
                     }
                     //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                    write(s"if (segmentList[${segId-1}]->isFireable(segFireCount, true, ${lastSegOnThread}) && fireCount < total)");
+                    write(s"if (segmentList[${segId-1}]->isFireable() && fireCount < total)");
                     write("{");
                     enter
                         if (sp.parameters.get[Int]('debug) >= 1)
@@ -832,7 +832,7 @@ private[scalapipe] class CPUResourceGenerator(
                     }
                     
                     //If the  segment is fireable, fire it
-                    write(s"if (segmentList[${segId-1}]->isFireable(segFireCount, true, ${lastSegOnThread}))")
+                    write(s"if (segmentList[${segId-1}]->isFireable())")
                     write("{")
                     enter
                         if (sp.parameters.get[Int]('debug) >= 1)
@@ -1101,9 +1101,9 @@ private[scalapipe] class CPUResourceGenerator(
             write("kernels.clear();")
             if (segment != sp.segments.head) {
                 write(s"segmentList[${segId-1}]->prev_seg = segmentList[${segId-2}];")
+                write(s"segmentList[${segId-2}]->next_seg = segmentList[${segId-1}];")
             }
             if (segment != sp.segments.last) {
-                write(s"segmentList[${segId-1}]->next_seg = segmentList[${segId}];")
             }
         }
         
