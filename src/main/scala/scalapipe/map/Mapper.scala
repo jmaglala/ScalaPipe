@@ -69,7 +69,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
             var min_buff_size = modules(i).getInputs(0).parameters.get[Int]('queueDepth) * 4
             edge_size :+= min_buff_size
             }
-            var kernel_state = modules(i).kernelType.configs.filter(c => c.name == "state").head.value.long.toInt * 4
+            var kernel_state = modules(i).kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
             mod_size :+= kernel_state
             mod_rates :+= kernel_gain
 
