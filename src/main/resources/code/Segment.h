@@ -21,6 +21,13 @@ public:
     int out_buf_size;
     int max_fires;
     
+    int read_count;
+    bool read_buf_fireable;
+    int read_count_threshold;
+    int write_count;
+    bool write_buf_fireable;
+    int write_count_threshold;
+    
     Segment *        next_seg;            // The next segment
     Segment *        prev_seg;            // The previous segment
     
