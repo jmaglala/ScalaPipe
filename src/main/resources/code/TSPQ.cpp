@@ -70,6 +70,8 @@ bool TSPQ::full()
 
 int TSPQ::read()
 {
+    while(empty())
+        ;
     auto curr_pos = m_read_pos.load();
     int ret = this->m_buff[curr_pos];
     m_read_pos.store((curr_pos +1) % this->m_size,std::memory_order_release);
@@ -80,6 +82,8 @@ int TSPQ::read()
 
 void TSPQ::write(const int val)
 {
+    while(full())
+        ;
     auto curr_pos = m_write_pos.load();
     this->m_buff[curr_pos] = val;
     m_write_pos.store((curr_pos + 1) % this->m_size,std::memory_order_release);

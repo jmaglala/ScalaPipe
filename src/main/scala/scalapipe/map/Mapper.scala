@@ -66,7 +66,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
             else {
             kernel_gain *= modules(i).kernelType.configs.filter(c => c.name == "outrate").head.value.long.toInt
             kernel_gain /= modules(i).kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
-            var min_buff_size = modules(i).getInputs(0).parameters.get[Int]('queueDepth)
+            var min_buff_size = modules(i).getInputs(0).parameters.get[Int]('queueDepth) * 4
             edge_size :+= min_buff_size
             }
             var kernel_state = modules(i).kernelType.configs.filter(c => c.name == "state").head.value.long.toInt * 4
