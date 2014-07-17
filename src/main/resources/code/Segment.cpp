@@ -2,13 +2,7 @@
 #include <iostream>
 
 static int sid = 0;
-Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelList(kernels) {
-    //Build kernel list
-    //this->kernelList = kernels;
-    /*for (int i = 0; i < kernels->m_size(); i++) {
-        kernelList.push_back(kernels[i]);
-    }*/
-    
+Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelList(kernels) {    
     state = 0;
     runtime = 0;
     output_rate = 1;
@@ -59,7 +53,7 @@ Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelL
     //Calculate the max times the segment can fire
     //and set count thresholds to update adjacent segment's fireability
     if (in_buf_size == 0) {
-        max_fires = out_buf_size/output_rate;
+        max_fires = out_buf_size/kernelList.back()->outrate;
         write_count_threshold = max_fires;
     }
     else if (out_buf_size == 0) {
@@ -67,14 +61,10 @@ Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelL
         read_count_threshold = max_fires;
     }
     else {
-        write_count_threshold = out_buf_size/output_rate;
+        write_count_threshold = out_buf_size/kernelList.back()->outrate;
         read_count_threshold = in_buf_size/input_rate;
         max_fires = std::min(in_buf_size/input_rate, out_buf_size/output_rate);
     }
-    
-    std::cout << "readThresh: " << read_count_threshold << " writeThres: " << write_count_threshold << std::endl;
-    
-    std::cin.get();
     
     // Allocate memory
     allocate_memory();
@@ -153,20 +143,17 @@ int Segment::fireIterations(int * segFireCount) {
         return segFireCount[id-1]/input_rate;
     //Otherwise take their minimum
     else {
-        std::cout << "seg" << id +1<< " " << std::min(segFireCount[id-1]/input_rate, (out_buf_size - segFireCount[id])/output_rate) << std::endl;
         return std::min(segFireCount[id-1]/input_rate, (out_buf_size - segFireCount[id])/output_rate);
     }
 }
 
 void Segment::update_next_seg() {
     if (write_count == write_count_threshold) {
-        std::cout << "Seg" << id +1<< " reset write" << std::endl;
-        write_buf_fireable = false;
         write_count = 0;
-        //std::cin.get();
     }
-    else if (write_count >= write_count_threshold * .5) {
-        //std::cout << "Seg" << id +1<< " notify next seg" << std::endl;
+    else if (write_count == (int)(write_count_threshold * .5)) {
+        std::cout << "Seg" << id << " notify next seg" << std::endl;
+        write_buf_fireable = false;
         next_seg->read_buf_fireable = true;
         //std::cin.get();
     }
@@ -174,13 +161,12 @@ void Segment::update_next_seg() {
 
 void Segment::update_prev_seg() {
     if (read_count == read_count_threshold) {
-        std::cout << "Seg" << id +1 << " reset read" << std::endl;
-        read_buf_fireable = false;
         read_count = 0;
         //std::cin.get();
     }
-    else if (read_count >= read_count_threshold * .5) {
-        //std::cout << "Seg" << id +1 << " notify prev kernel" << std::endl;
+    else if (read_count == (int)(read_count_threshold * .5)) {
+        std::cout << "Seg" << id << " notify prev seg" << std::endl;
+        read_buf_fireable = false;
         prev_seg->write_buf_fireable = true;
         //std::cin.get();
     }
@@ -229,11 +215,12 @@ void Segment::fire() {
         //If it's the last kernel
         else if (fireKernelNum == kernelList.size() - 1) {
             kernelList[fireKernelNum]->run();
-            //If it doesn't have enough input for another fire, move back
             if (out_buf_size > 0) {
+                //std::cout << "Seg" << id + 1 << " last kernel" << std::endl;
                 write_count++;
                 update_next_seg();
             }
+            //If it doesn't have enough input for another fire, move back
             if (kernelList[fireKernelNum]->get_available(0) < kernelList[fireKernelNum]->inrate) {
                 fireKernelNum--;
             }
