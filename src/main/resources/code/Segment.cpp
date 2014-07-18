@@ -108,27 +108,18 @@ void Segment::allocate_memory()
 }
 
 //Determine if segment is fireable
-bool Segment::isFireable() {
-    /*std::cout << "in_buf_size: " << in_buf_size << std::endl;
-    std::cout << "out_buf_size: " << out_buf_size << std::endl;
-    std::cout << "input_rate: " << input_rate << std::endl;
-    std::cout << "output_rate: " << output_rate << std::endl;
-    std::cout << "out_avail: " << kernelList.back()->outputs[0]->get_available() << std::endl;*/
+bool Segment::isFireable() 
     
     //If it's the first segment use its maximum output fires
     if (in_buf_size == 0) {
-        //std::cout << "first segment " << id << std::endl;
         return write_buf_fireable;
     }
     //If it's the last segment use its maximum input fires
     else if (out_buf_size == 0) {
-        //std::cout << "last segment " << id << std::endl;
         return read_buf_fireable;
     }
     //If it's a middle segment, take the minimum
     else {
-        //std::cout << "seg" << id + 1 << " "  << read_buf_fireable << " " << write_buf_fireable << std::endl;
-        //std::cin.get();
         return write_buf_fireable && read_buf_fireable;
     }
 }
@@ -155,20 +146,17 @@ void Segment::update_next_seg() {
         std::cout << "Seg" << id + 1 << " notify next seg" << std::endl;
         write_buf_fireable = false;
         next_seg->read_buf_fireable = true;
-        //std::cin.get();
     }
 }
 
 void Segment::update_prev_seg() {
     if (read_count == read_count_threshold) {
         read_count = 0;
-        //std::cin.get();
     }
     else if (read_count == (int)(read_count_threshold * .5)) {
         std::cout << "Seg" << id + 1 << " notify prev seg" << std::endl;
         read_buf_fireable = false;
         prev_seg->write_buf_fireable = true;
-        //std::cin.get();
     }
 }
 
@@ -227,23 +215,11 @@ void Segment::fire() {
         }
         //If it's a middle kernel
         else {
-            //std::cout << "Seg" << id << " kernel " << kernelList[fireKernelNum]->id << std::endl;
-            /*std::cout << "avail: " << kernelList[fireKernelNum]->get_available(0) << std::endl;
-            std::cout << "inrate: " << kernelList[fireKernelNum]->inrate << std::endl;
-            std::cout << "outrate: " << kernelList[fireKernelNum]->outrate << std::endl;
-            std::cout << "next avail: " << kernelList[fireKernelNum+1]->get_available(0) << std::endl;
-            std::cout << "next inrate: " << kernelList[fireKernelNum+1]->inrate << std::endl;*/
             //If there is space in the output buffer for a fire and it has input,
             if (kernelList[fireKernelNum+1]->get_available(0) + kernelList[fireKernelNum]->outrate <= kernelList[fireKernelNum]->outputs.front()->m_size &&
                 kernelList[fireKernelNum]->get_available(0) >= kernelList[fireKernelNum]->inrate) {
                 kernelList[fireKernelNum]->run();
-                /*std::cout << "---------------------------------------" << std::endl;
-                std::cout << "kernel " << fireKernelNum + 1 << std::endl;
-                std::cout << "avail: " << kernelList[fireKernelNum]->get_available(0) << std::endl;
-                std::cout << "inrate: " << kernelList[fireKernelNum]->inrate << std::endl;
-                std::cout << "outrate: " << kernelList[fireKernelNum]->outrate << std::endl;
-                std::cout << "next avail: " << kernelList[fireKernelNum+1]->get_available(0) << std::endl;
-                std::cout << "next inrate: " << kernelList[fireKernelNum+1]->inrate << std::endl;*/
+
                 //If the next kernel can fire after this kernel just fired, move to it
                 if (kernelList[fireKernelNum+1]->get_available(0) >= kernelList[fireKernelNum+1]->inrate) {
                     fireKernelNum++;
