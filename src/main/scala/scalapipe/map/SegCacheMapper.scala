@@ -35,7 +35,9 @@ private[scalapipe] class SegCacheMapper(
             //segment.foreach(println)
             segment.initVariables()
             if (sp.parameters.get[Int]('debug) >= 2)
+            {
                 println('\n' + "in:" + segment.input_rate + " out:" + segment.output_rate + " threshold:" + segment.threshold + " amp:" + segment.amplification + " run:" + segment.runtime + " state:" + segment.state + '\n')
+            }
         }
     }
 
