@@ -11,6 +11,42 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
     def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
     def lcm(a: Int, b: Int)=(a*b).abs/gcd(a,b)
     
+    // Compute Stream gains
+    def compute_gains()
+    {
+        /*val stream_cnt = sp.streams.size
+        var gain = 1;
+        for ( i <- 1 to stream_cnt+1)
+        {
+            val stream = sp.streams.filter(s =>( s.index == i)).head
+            if (i == 0)
+            {
+                stream.gain = gain
+            }
+            else
+            {
+                
+                gain = gain * (stream.sourceKernel.getConfig("outrate").long.toInt / stream.sourceKernel.getConfig("inrate").long.toInt)
+                stream.gain = gain
+            }
+        }*/
+        var sorted_streams = sp.streams.toSeq.sortBy(s => (s.index))
+        var gain : Double = 1
+        for (stream <- sorted_streams)
+        {
+            if (stream.index == 1)
+            {
+                stream.gain = gain.toInt
+            }
+            else
+            {
+                gain = gain * (stream.sourceKernel.kernel.outputs(0).rate.toDouble / stream.sourceKernel.kernel.inputs(0).rate.toDouble)
+                stream.gain = gain.toInt
+            }
+            println(stream.gain)
+        }
+    }
+    
     // Abstract Methods
     def create_segments(): Unit
     def assign_segments_to_cores(): Unit
@@ -144,7 +180,8 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
     
     // Toplevel map 
     def map() 
-    {
+    {   
+        compute_gains()
         assign_min_buffers()
         create_segments()
         assign_segments_to_cores()
@@ -158,20 +195,21 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
 
     def cross_buff(s: Stream): Int = 
     {
-        val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
-        val destRate: Int   = s.destKernel.kernel.inputs(0).rate
+        //val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
+        //val destRate: Int   = s.destKernel.kernel.inputs(0).rate
         
         //print(sourceRate + " " + destRate + " ")
         // For now we're assuming the same size data... which is right?
         val bytes = s.sourceKernel.kernel.outputs(0).valueType.bytes
         val cacheSize: Int = sp.parameters.get[Int]('cache) / bytes
         //val t_lcm: Int = super.lcm(super.lcm(sourceRateOut,destRate),sourceRateIn)
-        val t_lcm: Int = super.lcm(sourceRateOut,destRate)
+        //val t_lcm: Int = super.lcm(sourceRateOut,destRate)
         //print("lcm: " + t_lcm + " - ")
-        if (cacheSize % t_lcm == 0) 
-            return cacheSize
-        else
-            return ((cacheSize / t_lcm) + 1) * t_lcm
+        //if (cacheSize % t_lcm == 0) 
+        //    return cacheSize
+        //else
+        //    return ((cacheSize / t_lcm) + 1) * t_lcm
+        return cacheSize * s.gain
     }
 
     // Increases cross-edge buffers to M

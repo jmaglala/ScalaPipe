@@ -11,23 +11,6 @@ int Kernel::get_free(int out_port)
     return outputs[out_port]->get_free();
 }
 
-/*void * Kernel::allocate(int out_port)
-{
-    void *ptr = NULL;
-    for(;;) {
-        ptr = outputs[out_port]->allocate();
-        if(SPLIKELY(ptr != NULL))
-        {
-            return ptr;
-        }
-    }
-}*/
-
-/*void Kernel::send(int out_port)
-{
-    outputs[out_port]->send();
-}*/
-
 int Kernel::get_available(int in_port)
 {
     int result = 0;
@@ -50,11 +33,6 @@ int * Kernel::read_value(int in_port)
         }
     }
 }
-
-/*void Kernel::release(int in_port)
-{
-    inputs[in_port]->release();
-}*/
 
 void Kernel::set_state(uint8_t * buff)
 {
