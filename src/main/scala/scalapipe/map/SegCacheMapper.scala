@@ -25,6 +25,7 @@ private[scalapipe] class SegCacheMapper(
         sp.segments = int_best_partition(0,mods-1)
         
         for (segment <- sp.segments) {
+            print(segment.id + ") ")
             for(k <- segment.kernels)
                 {
                     if (sp.parameters.get[Int]('debug) >= 2)

@@ -2,7 +2,7 @@
 #include <iostream>
 
 static int sid = 0;
-Segment::Segment(int segId, std::vector<Kernel*> & kernels) : id(segId), kernelList(kernels) {    
+Segment::Segment(int segId, std::vector<Kernel*> & kernels, int * segFireCountArray) : id(segId), kernelList(kernels), segFireCount(segFireCountArray) {    
     state = 0;
     runtime = 0;
     output_rate = 1;
@@ -133,7 +133,7 @@ bool Segment::isFireable() {
     }
 }
 
-int Segment::fireIterations(int * segFireCount) {
+int Segment::fireIterations() {
     //If it's the first segment, return the amount of times the output can fire
     if (in_buf_size == 0) {
         return (out_buf_size - segFireCount[id])/output_rate;
@@ -152,7 +152,7 @@ void Segment::update_next_seg() {
         write_count = 0;
     }
     else if (write_count == (int)(write_count_threshold * .5)) {
-        std::cout << "Seg" << id << " notify next seg" << std::endl;
+        std::cout << "Seg" << id + 1 << " notify next seg" << std::endl;
         write_buf_fireable = false;
         next_seg->read_buf_fireable = true;
         //std::cin.get();
@@ -165,7 +165,7 @@ void Segment::update_prev_seg() {
         //std::cin.get();
     }
     else if (read_count == (int)(read_count_threshold * .5)) {
-        std::cout << "Seg" << id << " notify prev seg" << std::endl;
+        std::cout << "Seg" << id + 1 << " notify prev seg" << std::endl;
         read_buf_fireable = false;
         prev_seg->write_buf_fireable = true;
         //std::cin.get();

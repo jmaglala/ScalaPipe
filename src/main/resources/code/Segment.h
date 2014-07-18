@@ -6,12 +6,13 @@
 // Helper struct for storing information about a segment
 class Segment
 {
-private:
+    
+public:
     void update_next_seg();
     void update_prev_seg();
     
-public:
     std::vector<Kernel*> kernelList;         // The list of mod_ids
+    int * segFireCount;
     
     int id;              // An id from the scheudle
     
@@ -38,9 +39,9 @@ public:
     uint8_t *        buff;
     
 
-    Segment(int id,std::vector<Kernel*> & kernels);
+    Segment(int ,std::vector<Kernel*> &, int *);
     bool isFireable();
-    int fireIterations(int *);
+    int fireIterations();
     void fire();
 
 private:

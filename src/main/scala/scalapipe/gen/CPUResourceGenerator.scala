@@ -780,7 +780,7 @@ private[scalapipe] class CPUResourceGenerator(
                     enter
                         if (sp.parameters.get[Int]('debug) >= 1)
                             write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
-                        write(s"int segmentFireIterations = segmentList[${segId-1}]->fireIterations(segFireCount);")
+                        write(s"int segmentFireIterations = segmentList[${segId-1}]->fireIterations();")
 
                         //If the threshold is only 1 fire, then add to segFireCount on each fire
                         if (segment.threshold == 1) {
@@ -838,7 +838,7 @@ private[scalapipe] class CPUResourceGenerator(
                         if (sp.parameters.get[Int]('debug) >= 1)
                             write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")                   
                             
-                        write(s"int segmentFireIterations = segmentList[${segId-1}]->fireIterations(segFireCount);")
+                        write(s"int segmentFireIterations = segmentList[${segId-1}]->fireIterations();")
                             
                         //Update the segFireCount array
                         write(s"segFireCount[${segment.id-2}] -= segmentFireIterations * ${segment.input_rate};")
@@ -1097,7 +1097,7 @@ private[scalapipe] class CPUResourceGenerator(
             enter
                 write("kernels.push_back(modList[i]);")
             leave
-            write(s"segmentList.push_back(new Segment(${segment.id-1}, kernels));")
+            write(s"segmentList.push_back(new Segment(${segment.id-1}, kernels, segFireCount));")
             write("kernels.clear();")
             if (segment != sp.segments.head) {
                 write(s"segmentList[${segId-1}]->prev_seg = segmentList[${segId-2}];")
