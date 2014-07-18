@@ -108,7 +108,7 @@ void Segment::allocate_memory()
 }
 
 //Determine if segment is fireable
-bool Segment::isFireable() 
+bool Segment::isFireable() {
     
     //If it's the first segment use its maximum output fires
     if (in_buf_size == 0) {
@@ -127,15 +127,15 @@ bool Segment::isFireable()
 int Segment::fireIterations(int * segFireCount) {
     //If it's the first segment, return the amount of times the output can fire
     if (in_buf_size == 0) {
-        return (out_buf_size - segFireCount[id])/output_rate;
+        return (out_buf_size /output_rate);
     }
     //If it's the last segment, return the amount of times the input can fire
-    else if (out_buf_size == 0)
-        return segFireCount[id-1]/input_rate;
-    //Otherwise take their minimum
+    else 
+        return in_buf_size/input_rate;
+    /*//Otherwise take their minimum
     else {
         return std::min(segFireCount[id-1]/input_rate, (out_buf_size - segFireCount[id])/output_rate);
-    }
+    }*/
 }
 
 void Segment::update_next_seg() {
@@ -143,7 +143,7 @@ void Segment::update_next_seg() {
         write_count = 0;
     }
     else if (write_count == (int)(write_count_threshold * .5)) {
-        std::cout << "Seg" << id << " notify next seg" << std::endl;
+//         std::cout << "Seg" << id << " notify next seg" << std::endl;
         write_buf_fireable = false;
         next_seg->read_buf_fireable = true;
     }
@@ -154,7 +154,7 @@ void Segment::update_prev_seg() {
         read_count = 0;
     }
     else if (read_count == (int)(read_count_threshold * .5)) {
-        std::cout << "Seg" << id << " notify prev seg" << std::endl;
+//         std::cout << "Seg" << id << " notify prev seg" << std::endl;
         read_buf_fireable = false;
         prev_seg->write_buf_fireable = true;
     }
@@ -204,7 +204,6 @@ void Segment::fire() {
         else if (fireKernelNum == kernelList.size() - 1) {
             kernelList[fireKernelNum]->run();
             if (out_buf_size > 0) {
-                //std::cout << "Seg" << id + 1 << " last kernel" << std::endl;
                 write_count++;
                 update_next_seg();
             }

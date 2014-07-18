@@ -15,7 +15,7 @@ class Stream private[scalapipe](
     private[scalapipe] var measures = Set[Measure]()
     private[scalapipe] var edge: Edge = null
     private[scalapipe] val parameters = new EdgeParameters(sp.parameters)
-    private[scalapipe] var gain = 1
+    private[scalapipe] var gain = 1.0
     collectDebugInfo
 
     /** Take this stream and apply it to the input of a split kernel. */

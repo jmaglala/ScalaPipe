@@ -36,13 +36,14 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
         {
             if (stream.index == 1)
             {
-                stream.gain = gain.toInt
+                gain = 1.0
             }
             else
             {
                 gain = gain * (stream.sourceKernel.kernel.outputs(0).rate.toDouble / stream.sourceKernel.kernel.inputs(0).rate.toDouble)
-                stream.gain = gain.toInt
             }
+            stream.gain = gain
+            println(Math.round(stream.gain))
         }
     }
     
@@ -208,7 +209,7 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         //    return cacheSize
         //else
         //    return ((cacheSize / t_lcm) + 1) * t_lcm
-        return cacheSize * s.gain
+        return cacheSize * Math.round(s.gain).toInt
     }
 
     // Increases cross-edge buffers to M
