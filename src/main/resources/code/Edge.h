@@ -34,8 +34,13 @@ public:
     
     void set_buff(int * buff = NULL);
     bool is_initd();
-    uint64_t get_size();
+    
+    // Size in bytes
+    size_t get_size();
     uint64_t get_free();
+    
+    // Queue depth
+    uint64_t size();
 };
 
 #endif // _EDGE_H_
