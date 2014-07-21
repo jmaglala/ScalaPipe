@@ -54,4 +54,17 @@ void Kernel::init()
         state_buff[i] = i;
 }
 
+bool Kernel::fireable()
+{
+    bool fireable = true;
+    if (outputs.size() > 1)
+    {
+        fireable = fireable && outputs[0]->ready(outrate,true);
+    }
+    if (inputs.size() > 1)
+    {
+        fireable = fireable && inputs[0]->ready(inrate,false);
+    }
+    return fireable;
+}
 #endif

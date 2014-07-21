@@ -67,8 +67,22 @@ private[scalapipe] class RuntimeSegMapper(
             }
         }
         var segs = min_ids(procs-1)(mods-1)
+        
         segs = segs.sortWith(_ < _)
         
+        //segs.foreach(println)
+        
+        
+        /*for (segment <- sp.segments) {
+            print(segment.id + ") ")
+            for(k <- segment.kernels)
+                {
+                    if (sp.parameters.get[Int]('debug) >= 2)
+                        print(k)
+                    kernelToSPSegment += (k -> segment)
+                }
+            //segment.foreach(println)
+            segment.initVariables()*/
     }
     
     def assign_segments_to_cores() : Unit = {

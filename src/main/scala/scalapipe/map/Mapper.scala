@@ -43,7 +43,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
                 gain = gain * (stream.sourceKernel.kernel.outputs(0).rate.toDouble / stream.sourceKernel.kernel.inputs(0).rate.toDouble)
             }
             stream.gain = gain
-            println(Math.round(stream.gain))
+            //println(Math.round(stream.gain))
         }
     }
     

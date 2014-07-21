@@ -129,13 +129,9 @@ int Segment::fireIterations() {
     if (in_buf_size == 0) {
         return (out_buf_size /output_rate);
     }
-    //If it's the last segment, return the amount of times the input can fire
+    // Otherwise, return the amount of times the input can fire
     else 
         return in_buf_size/input_rate;
-    /*//Otherwise take their minimum
-    else {
-        return std::min(segFireCount[id-1]/input_rate, (out_buf_size - segFireCount[id])/output_rate);
-    }*/
 }
 
 void Segment::update_next_seg() {
@@ -161,9 +157,12 @@ void Segment::update_prev_seg() {
 }
 
 void Segment::fire() {
-    bool fired = false;
-    bool done = false;
-    int fireKernelNum = 0;
+    
+    // Load all kernels
+    for (Kernel * k : kernelList)
+    {
+        k->load();
+    }
     
     //If there's only one kernel, fire it and return
     if (kernelList.size() == 1) {
@@ -178,7 +177,12 @@ void Segment::fire() {
         }
         return;
     }
-    while (done == false) {
+    bool fired = false;
+    bool done = false;
+    int fireKernelNum = 0;
+    
+    while (done == false) 
+    {
         //If it's the first kernel
         if (fireKernelNum == 0) {
             //End if this segment has already fired

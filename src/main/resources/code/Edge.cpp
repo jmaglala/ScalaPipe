@@ -27,4 +27,8 @@ uint64_t Edge::get_free()
     return this->m_size - this->get_available();
 }
 
+uint64_t Edge::size()
+{
+    return this->m_size;
+}
 #endif // __EDGE_CPP__
