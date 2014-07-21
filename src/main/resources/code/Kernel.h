@@ -36,6 +36,8 @@ public:
     void load();
     void init();
     
+    bool fireable();
+    
     virtual void run() = 0;
     
     int get_free(int out_port);
