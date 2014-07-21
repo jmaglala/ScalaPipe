@@ -156,6 +156,12 @@ void Segment::update_prev_seg() {
 
 void Segment::fire() {
     
+    // Load all kernels
+    for (Kernel * k : kernelList)
+    {
+        k->load();
+    }
+    
     //If there's only one kernel, fire it and return
     if (kernelList.size() == 1) {
         if (in_buf_size > 0) {
