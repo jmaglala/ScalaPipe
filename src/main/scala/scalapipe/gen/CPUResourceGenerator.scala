@@ -87,291 +87,291 @@ private[scalapipe] class CPUResourceGenerator(
             write("#include \"" + name + "/" + name + ".h\"")
         }
     }
-
-    private def emitKernelStruct(kernel	: KernelInstance) {
-
-        val inputCount = kernel.getInputs.size
-        val outputCount = kernel.getOutputs.size
-
-        write(s"static struct {")
-        enter
-        write(s"SPC clock;")
-        write(s"jmp_buf env;")
-        write(s"volatile uint32_t active_inputs;")
-        write(s"SPKernelData data;")
-        write(s"struct sp_${kernel.kernelType.name}_data priv;")
-        leave
-        write(s"} ${kernel.label};")
-
-    }
-
-    private def emitConfig(kernel: KernelInstance,
-                           t: ValueType,
-                           config: ConfigLiteral): String = {
-        val lit = Literal.get(config.default)
-        val d = lit match {
-            case c: ConfigLiteral =>
-                emitConfig(kernel, t, c)
-            case _ =>
-                val other = kernel.kernelType.getLiteral(lit)
-                if (lit.valueType.getClass == t.getClass) {
-                    s"($t)$other"
-                } else {
-                    Error.raise("invalid conversion for config parameter",
-                                kernel)
-                }
-        }
-        val param = config.name
-        return s"""get_arg<$t>(argc, argv, "-$param", $d)"""
-    }
-
-    private def emitKernelInit(kernel: KernelInstance) {
-
-        val instance = kernel.label
-        val name = kernel.name //kernel#
-        write(s"static void ${instance}_init()")
-        write("{")
-        enter
-            write(s"${instance}.data.get_free = ${instance}_get_free;")
-            write(s"${instance}.data.allocate = ${instance}_allocate;")
-            write(s"${instance}.data.send = ${instance}_send;")
-            write(s"${instance}.data.get_available = ${instance}_get_available;")
-            write(s"${instance}.data.read_value = ${instance}_read_value;")
-            write(s"${instance}.data.release = ${instance}_release;")
-            write(s"sp_${name}_init(&${instance}.priv);")
-            
-            // Default config options.
-            // These are initialized here to allow overrides from
-            // the command line.
-            for (c <- kernel.kernelType.configs) {
-                val name = c.name
-                val t = c.valueType.baseType
-                val custom = kernel.getConfig(name)
-                val value = if (custom != null) custom else c.value
-                value match {
-                    case cl: ConfigLiteral =>
-                        write(s"""$instance.priv.$name = """ +
-                            emitConfig(kernel, t, cl) + ";")
-                    case l: Literal =>
-                        val lit = kernel.kernelType.getLiteral(value)
-                        write(s"$instance.priv.$name = ($t)$lit;")
-                    case _ => ()
-                }
-            }
-
-            // Active inputs is set here since it must be
-            // initialized before any producer threads start.
-            val inPortCount = kernel.getInputs.size
-            write(s"$instance.active_inputs = $inPortCount;")
-
-        leave
-        write("}")
-    }
-
-    private def emitKernelGetFree(kernel: KernelInstance) {
-
-        val instance = kernel.label
-
-        write(s"static int ${instance}_get_free(int out_port)")
-        write(s"{")
-        enter
-        write(s"switch(out_port) {")
-        for (stream <- kernel.getOutputs) {
-            val index = kernel.outputIndex(stream.sourcePort)
-            write(s"case $index:")
-            enter
-            write(s"return ${stream.label}_get_free();")
-            leave
-        }
-        write(s"}")
-        write(s"return 0;")
-        leave
-        write(s"}")
-
-    }
-
-    private def emitKernelAllocate(kernel: KernelInstance) {
-
-        val instance = kernel.label
-
-        write(s"static void *${instance}_allocate(int out_port)")
-        write(s"{")
-        enter
-        //write(s"spc_stop(&$instance.clock);")
-        write(s"void *ptr = NULL;")
-        if (!kernel.getOutputs.filter(_.useFull).isEmpty) {
-            write(s"bool first = true;")
-        }
-        write(s"for(;;) {")
-        enter
-
-        write(s"switch(out_port) {")
-        for (stream <- kernel.getOutputs) {
-            val index = kernel.outputIndex(stream.sourcePort)
-            write(s"case $index:")
-            enter
-            write(s"ptr = ${stream.label}_allocate();")
-            if (stream.useFull) {
-                write(s"if(first && ptr == NULL) {")
-                enter
-                write(s"first = false;")
-                write(s"tta->LogEvent(${stream.index}, TTA_TYPE_FULL);")
-                leave
-                write(s"}")
-            }
-            write(s"break;")
-            leave
-        }
-        write(s"}")
-        write(s"if(SPLIKELY(ptr != NULL)) {")
-        enter
-        //write(s"spc_start(&$instance.clock);")
-        write(s"return ptr;")
-        leave
-        write(s"}")
-        write(s"sched_yield();");
-        leave
-        write(s"}")
-        leave
-        write(s"}")
-
-    }
-
-    private def emitKernelSend(kernel: KernelInstance) {
-
-        val instance = kernel.label
-
-        write(s"static void ${instance}_send(int out_port)")
-        write(s"{")
-        enter
-        val outputCount = kernel.getOutputs.size
-        if (outputCount > 0) {
-            //write(s"spc_stop(&$instance.clock);")
-            write(s"switch(out_port) {")
-            for (stream <- kernel.getOutputs) {
-                val index = kernel.outputIndex(stream.sourcePort)
-                write(s"case $index:")
-                enter
-                if (stream.usePush) {
-                    write(s"tta->LogEvent(${stream.index}, TTA_TYPE_PUSH, " +
-                          s"${stream.label}_get_free() == 0);")
-                }
-                write(s"${stream.label}_send();")
-                write(s"break;")
-                leave
-            }
-            write(s"}")
-            //write(s"spc_start(&$instance.clock);")
-        }
-        leave
-        write(s"}")
-
-    }
-
-    private def emitKernelAvailable(kernel: KernelInstance) {
-
-        val instance = kernel.label
-
-        write(s"static int ${instance}_get_available(int in_port)")
-        write(s"{")
-        enter
-        write(s"int result = 0;")
-        //write(s"spc_stop(&$instance.clock);")
-        if (!kernel.getInputs.isEmpty) {
-            write(s"switch(in_port) {")
-            for (stream <- kernel.getInputs) {
-                val index = kernel.inputIndex(stream.destPort)
-                write(s"case $index:")
-                enter
-                write(s"result = ${stream.label}_get_available();")
-                write(s"break;")
-                leave
-            }
-            write(s"}")
-        }
-        //write(s"spc_start(&$instance.clock);")
-        write(s"return result;")
-        leave
-        write(s"}")
-
-    }
-
-    private def emitKernelRead(kernel: KernelInstance) {
-
-        val instance = kernel.label
-        write(s"static void *${instance}_read_value(int in_port)")
-        write(s"{")
-        enter
-        write(s"void *ptr = NULL;")
-        write(s"int end_count = 0;")
-        //write(s"spc_stop(&$instance.clock);")
-        write(s"for(;;) {")
-        enter
-        if (!kernel.getInputs.isEmpty) {
-            write(s"switch(in_port) {")
-            for (stream <- kernel.getInputs) {
-                val index = kernel.inputIndex(stream.destPort)
-                write(s"case $index:")
-                enter
-                write(s"ptr = ${stream.label}_read_value();")
-                write(s"break;")
-                leave
-            }
-            write(s"}")
-        }
-        write(s"if(SPLIKELY(ptr != NULL)) {")
-        enter
-        write(s"$instance.clock.count += 1;");
-        //write(s"spc_start(&$instance.clock);")
-        write(s"return ptr;")
-        leave
-        write(s"}")
-        write(s"if(SPUNLIKELY($instance.active_inputs == 0)) {")
-        enter
-        write(s"if(end_count > 1) {")
-        enter
-        write(s"longjmp($instance.env, 1);")
-        leave
-        write(s"}")
-        write(s"end_count += 1;")
-        leave
-        write(s"}")
-        write(s"sched_yield();")
-        leave
-        write(s"}")
-        leave
-        write(s"}")
-
-    }
-
-    private def emitKernelRelease(kernel: KernelInstance) {
-
-        val name = kernel.kernelType.name
-        val instance = kernel.label
-
-        write(s"static void ${instance}_release(int in_port)")
-        write(s"{")
-        enter
-        //write(s"spc_stop(&$instance.clock);")
-        write(s"switch(in_port) {")
-        for (stream <- kernel.getInputs) {
-            val index = kernel.inputIndex(stream.destPort)
-            write(s"case $index:")
-            enter
-            if (stream.usePop) {
-                write(s"tta->LogEvent(${stream.index}, TTA_TYPE_POP, " +
-                      s"${stream.label}_get_free() == 0);")
-            }
-            write(s"${stream.label}_release();")
-            write(s"break;")
-            leave
-        }
-        write(s"}")
-        //write(s"spc_start(&$instance.clock);")
-        leave
-        write(s"}")
-
-    }
+// 
+//     private def emitKernelStruct(kernel	: KernelInstance) {
+// 
+//         val inputCount = kernel.getInputs.size
+//         val outputCount = kernel.getOutputs.size
+// 
+//         write(s"static struct {")
+//         enter
+//         write(s"SPC clock;")
+//         write(s"jmp_buf env;")
+//         write(s"volatile uint32_t active_inputs;")
+//         write(s"SPKernelData data;")
+//         write(s"struct sp_${kernel.kernelType.name}_data priv;")
+//         leave
+//         write(s"} ${kernel.label};")
+// 
+//     }
+// 
+//     private def emitConfig(kernel: KernelInstance,
+//                            t: ValueType,
+//                            config: ConfigLiteral): String = {
+//         val lit = Literal.get(config.default)
+//         val d = lit match {
+//             case c: ConfigLiteral =>
+//                 emitConfig(kernel, t, c)
+//             case _ =>
+//                 val other = kernel.kernelType.getLiteral(lit)
+//                 if (lit.valueType.getClass == t.getClass) {
+//                     s"($t)$other"
+//                 } else {
+//                     Error.raise("invalid conversion for config parameter",
+//                                 kernel)
+//                 }
+//         }
+//         val param = config.name
+//         return s"""get_arg<$t>(argc, argv, "-$param", $d)"""
+//     }
+// 
+//     private def emitKernelInit(kernel: KernelInstance) {
+// 
+//         val instance = kernel.label
+//         val name = kernel.name //kernel#
+//         write(s"static void ${instance}_init()")
+//         write("{")
+//         enter
+//             write(s"${instance}.data.get_free = ${instance}_get_free;")
+//             write(s"${instance}.data.allocate = ${instance}_allocate;")
+//             write(s"${instance}.data.send = ${instance}_send;")
+//             write(s"${instance}.data.get_available = ${instance}_get_available;")
+//             write(s"${instance}.data.read_value = ${instance}_read_value;")
+//             write(s"${instance}.data.release = ${instance}_release;")
+//             write(s"sp_${name}_init(&${instance}.priv);")
+//             
+//             // Default config options.
+//             // These are initialized here to allow overrides from
+//             // the command line.
+//             for (c <- kernel.kernelType.configs) {
+//                 val name = c.name
+//                 val t = c.valueType.baseType
+//                 val custom = kernel.getConfig(name)
+//                 val value = if (custom != null) custom else c.value
+//                 value match {
+//                     case cl: ConfigLiteral =>
+//                         write(s"""$instance.priv.$name = """ +
+//                             emitConfig(kernel, t, cl) + ";")
+//                     case l: Literal =>
+//                         val lit = kernel.kernelType.getLiteral(value)
+//                         write(s"$instance.priv.$name = ($t)$lit;")
+//                     case _ => ()
+//                 }
+//             }
+// 
+//             // Active inputs is set here since it must be
+//             // initialized before any producer threads start.
+//             val inPortCount = kernel.getInputs.size
+//             write(s"$instance.active_inputs = $inPortCount;")
+// 
+//         leave
+//         write("}")
+//     }
+// 
+//     private def emitKernelGetFree(kernel: KernelInstance) {
+// 
+//         val instance = kernel.label
+// 
+//         write(s"static int ${instance}_get_free(int out_port)")
+//         write(s"{")
+//         enter
+//         write(s"switch(out_port) {")
+//         for (stream <- kernel.getOutputs) {
+//             val index = kernel.outputIndex(stream.sourcePort)
+//             write(s"case $index:")
+//             enter
+//             write(s"return ${stream.label}_get_free();")
+//             leave
+//         }
+//         write(s"}")
+//         write(s"return 0;")
+//         leave
+//         write(s"}")
+// 
+//     }
+// 
+//     private def emitKernelAllocate(kernel: KernelInstance) {
+// 
+//         val instance = kernel.label
+// 
+//         write(s"static void *${instance}_allocate(int out_port)")
+//         write(s"{")
+//         enter
+//         //write(s"spc_stop(&$instance.clock);")
+//         write(s"void *ptr = NULL;")
+//         if (!kernel.getOutputs.filter(_.useFull).isEmpty) {
+//             write(s"bool first = true;")
+//         }
+//         write(s"for(;;) {")
+//         enter
+// 
+//         write(s"switch(out_port) {")
+//         for (stream <- kernel.getOutputs) {
+//             val index = kernel.outputIndex(stream.sourcePort)
+//             write(s"case $index:")
+//             enter
+//             write(s"ptr = ${stream.label}_allocate();")
+//             if (stream.useFull) {
+//                 write(s"if(first && ptr == NULL) {")
+//                 enter
+//                 write(s"first = false;")
+//                 write(s"tta->LogEvent(${stream.index}, TTA_TYPE_FULL);")
+//                 leave
+//                 write(s"}")
+//             }
+//             write(s"break;")
+//             leave
+//         }
+//         write(s"}")
+//         write(s"if(SPLIKELY(ptr != NULL)) {")
+//         enter
+//         //write(s"spc_start(&$instance.clock);")
+//         write(s"return ptr;")
+//         leave
+//         write(s"}")
+//         write(s"sched_yield();");
+//         leave
+//         write(s"}")
+//         leave
+//         write(s"}")
+// 
+//     }
+// 
+//     private def emitKernelSend(kernel: KernelInstance) {
+// 
+//         val instance = kernel.label
+// 
+//         write(s"static void ${instance}_send(int out_port)")
+//         write(s"{")
+//         enter
+//         val outputCount = kernel.getOutputs.size
+//         if (outputCount > 0) {
+//             //write(s"spc_stop(&$instance.clock);")
+//             write(s"switch(out_port) {")
+//             for (stream <- kernel.getOutputs) {
+//                 val index = kernel.outputIndex(stream.sourcePort)
+//                 write(s"case $index:")
+//                 enter
+//                 if (stream.usePush) {
+//                     write(s"tta->LogEvent(${stream.index}, TTA_TYPE_PUSH, " +
+//                           s"${stream.label}_get_free() == 0);")
+//                 }
+//                 write(s"${stream.label}_send();")
+//                 write(s"break;")
+//                 leave
+//             }
+//             write(s"}")
+//             //write(s"spc_start(&$instance.clock);")
+//         }
+//         leave
+//         write(s"}")
+// 
+//     }
+// 
+//     private def emitKernelAvailable(kernel: KernelInstance) {
+// 
+//         val instance = kernel.label
+// 
+//         write(s"static int ${instance}_get_available(int in_port)")
+//         write(s"{")
+//         enter
+//         write(s"int result = 0;")
+//         //write(s"spc_stop(&$instance.clock);")
+//         if (!kernel.getInputs.isEmpty) {
+//             write(s"switch(in_port) {")
+//             for (stream <- kernel.getInputs) {
+//                 val index = kernel.inputIndex(stream.destPort)
+//                 write(s"case $index:")
+//                 enter
+//                 write(s"result = ${stream.label}_get_available();")
+//                 write(s"break;")
+//                 leave
+//             }
+//             write(s"}")
+//         }
+//         //write(s"spc_start(&$instance.clock);")
+//         write(s"return result;")
+//         leave
+//         write(s"}")
+// 
+//     }
+// 
+//     private def emitKernelRead(kernel: KernelInstance) {
+// 
+//         val instance = kernel.label
+//         write(s"static void *${instance}_read_value(int in_port)")
+//         write(s"{")
+//         enter
+//         write(s"void *ptr = NULL;")
+//         write(s"int end_count = 0;")
+//         //write(s"spc_stop(&$instance.clock);")
+//         write(s"for(;;) {")
+//         enter
+//         if (!kernel.getInputs.isEmpty) {
+//             write(s"switch(in_port) {")
+//             for (stream <- kernel.getInputs) {
+//                 val index = kernel.inputIndex(stream.destPort)
+//                 write(s"case $index:")
+//                 enter
+//                 write(s"ptr = ${stream.label}_read_value();")
+//                 write(s"break;")
+//                 leave
+//             }
+//             write(s"}")
+//         }
+//         write(s"if(SPLIKELY(ptr != NULL)) {")
+//         enter
+//         write(s"$instance.clock.count += 1;");
+//         //write(s"spc_start(&$instance.clock);")
+//         write(s"return ptr;")
+//         leave
+//         write(s"}")
+//         write(s"if(SPUNLIKELY($instance.active_inputs == 0)) {")
+//         enter
+//         write(s"if(end_count > 1) {")
+//         enter
+//         write(s"longjmp($instance.env, 1);")
+//         leave
+//         write(s"}")
+//         write(s"end_count += 1;")
+//         leave
+//         write(s"}")
+//         write(s"sched_yield();")
+//         leave
+//         write(s"}")
+//         leave
+//         write(s"}")
+// 
+//     }
+// 
+//     private def emitKernelRelease(kernel: KernelInstance) {
+// 
+//         val name = kernel.kernelType.name
+//         val instance = kernel.label
+// 
+//         write(s"static void ${instance}_release(int in_port)")
+//         write(s"{")
+//         enter
+//         //write(s"spc_stop(&$instance.clock);")
+//         write(s"switch(in_port) {")
+//         for (stream <- kernel.getInputs) {
+//             val index = kernel.inputIndex(stream.destPort)
+//             write(s"case $index:")
+//             enter
+//             if (stream.usePop) {
+//                 write(s"tta->LogEvent(${stream.index}, TTA_TYPE_POP, " +
+//                       s"${stream.label}_get_free() == 0);")
+//             }
+//             write(s"${stream.label}_release();")
+//             write(s"break;")
+//             leave
+//         }
+//         write(s"}")
+//         //write(s"spc_start(&$instance.clock);")
+//         leave
+//         write(s"}")
+// 
+//     }
 
     private def writeShutdown(instances: Traversable[KernelInstance],
                               edgeStats: ListBuffer[Generator]) {
@@ -474,263 +474,263 @@ private[scalapipe] class CPUResourceGenerator(
         }
     }
     
-    private def emitSegmentFireIterations(segment: SPSegment) {
-        if (segment != sp.segments.head && segment != sp.segments.last) {
-            write(s"int seg${segment.id}_fire_iterations() {")
-            enter
-                write(s"if (!std::min(segFireCount[${segment.id-2}]/${segment.input_rate}, (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate})) {")
-                enter
-                    write(s"std::cout << ${"\"This shouldn't happen. Press enter to continue...\""} << std::endl;")
-                    write("std::cin.get();")
-                leave
-                write("}")
-                write(s"return std::min(segFireCount[${segment.id-2}]/${segment.input_rate}, (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate});")
-            leave
-            write("}")
-        }
-    }
-    
-    // Bool function to return if segment is fireable
-    private def emitSegmentFireable(spsegment: SPSegment) {
-        val segId = spsegment.id
-        
-        //Lists the segment's kernels and all the kernels
-        val segment = spsegment.kernels
-        val localInstances = sp.instances.filter { instance =>
-            instance.device != null && instance.device.host == host
-        }
-        val cpuInstances = localInstances.filter { instance =>
-            shouldEmit(instance.device)
-        }
-        //Queue depths and rates
-        var outqueuedepth = 1
-        if (spsegment.kernels.last.getOutputs.length != 0)
-            outqueuedepth = spsegment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
-        var inqueuedepth = 1
-        if (spsegment.kernels.head.getInputs.length != 0)
-            inqueuedepth = spsegment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
-        val segOutRate = spsegment.output_rate
-        val segInRate = spsegment.input_rate
-        write(s"bool segment${segId}_is_fireable()")
-        write("{")
-        enter
-        
-        //If it's the first kernel
-        if (segment.head.kernel.inputs.length == 0)
-        {
-            //If the next segment is on a different processor, use get_available
-            if (spsegment.tid != sp.segments(segId).tid)
-                write(s"int segmentFireIterations = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
-            //Otherwise use the segFireCount array
-            else
-                write(s"int segmentFireIterations = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
-            //If the number of iterations is 0 or less than half it's maximum fires, return false
-            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${(outqueuedepth/segOutRate)} * .5)")
-            enter
-            write("return false;")
-            leave
-
-            write("return true;")
-
-        }
-        //If it's a middle kernel
-        else if (segment.last.kernel.outputs.length != 0)
-        {
-            //If the previous segment is on a different processor, use get_available
-            if (spsegment.tid != sp.segments(segId-2).tid)
-                write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
-            //Otherwise use the segFireCount array
-            else
-                write(s"int maxInputFires = segFireCount[${spsegment.id-2}] / ${segInRate};")
-            //If the next segment is on a different processor, use get_available
-            if (spsegment.tid != sp.segments(segId).tid)
-                write(s"int maxOutputFires = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
-            //Otherwise use the segFireCount array
-            else
-                write(s"int maxOutputFires = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
-                
-            //Segment fire iterations is the min of the max output fires and input fires
-            write(s"int segmentFireIterations = std::min(maxOutputFires, maxInputFires);")
-            //If the number of iterations is 0 or less than half it's maximum fires, return false
-            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} * .5)")
-            enter
-            write("return false;")
-            leave
-            
-            write("return true;")
-        }
-        //If it's the last kernel
-        else {
-            //If the previous segment is on a different processor, use get_available
-            if (spsegment.tid != sp.segments(segId-2).tid)
-                write(s"int segmentFireIterations = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
-            //Otherwise use the segFireCount array
-            else
-                write(s"int segmentFireIterations = segFireCount[${spsegment.id-2}] / ${segInRate};")
-            //If the number of iterations is 0 or less than half it's maximum fires, return false
-            write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${inqueuedepth/segInRate} * .5)")
-            enter
-            write("return false;")
-            leave
-            
-            write("return true;")
-
-        }
-        leave
-        write("}")
-    }
-    
-    //Function to fire all kernels in a segment
-    private def emitSegmentFire(spsegment: SPSegment) {
-        //Set variables for this segment
-        val segId = spsegment.id
-        val segment = spsegment.kernels
-        val localInstances = sp.instances.filter { instance =>
-            instance.device != null && instance.device.host == host
-        }
-        val cpuInstances = localInstances.filter { instance =>
-            shouldEmit(instance.device)
-        }
-        
-        write(s"static void fire_segment${segId}()")
-        write(s"{")
-        enter
-        
-        //If it's a single kernel in a segment, no control structures needed. Just fire the one kernel
-        if (segment.head == segment.last)
-        {
-            val id = segment.head.index
-            
-            write(s"sp_${segment.head.name}_run(&${segment.head.label}.priv);")
-            leave
-            write("}")
-            
-            return
-        }
-        
-        //Write run_thread variables
-        write(s"int fireKernelNum = ${segment.last.index};");
-        write("int fireCount = 0;");
-        write("int total = 1;")
-        write("bool inputEmpty = false;");
-        
-        //Create while loop to run until the fireCount == requested total
-        write("while (inputEmpty == false)");
-        write("{");
-        enter
-        //Switch statement to determine which kernel to fire
-        write("switch (fireKernelNum)");
-        write("{");
-        enter
-        //Iterate through 1 to # of kernels
-        for (kernel <- segment.reverse) {
-            val name = kernel.name //kernel#
-            val instance = kernel.label //instance#
-            val id = kernel.index //#
-            
-            //If writing out code for first kernel
-            if (id == segment.head.index)
-            {
-                write(s"case ${id}:")
-                enter
-                if (sp.parameters.get[Int]('debug) >= 2)
-                    write(s"std::cout << 'k' << ${id} << std::endl;")
-                //If it has fired the requested total and the output buffer < the next kernel's required input then end
-                write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).label}.priv.inrate)");
-                write("{");
-                enter
-                write("inputEmpty = true;");
-                write("break;");
-                leave
-                write("}");
-                //If it has fired the requested total then move onto the next kernel
-                write("else if (fireCount >= total)");
-                write("{");
-                enter
-                write("fireKernelNum++;");
-                write("break;");
-                leave
-                write("}");
-                //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
-                write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.label}.priv.outrate) > ${kernel.getOutputs(0).parameters.get[Int]('queueDepth)})");
-                write("{");
-                enter
-                write("fireKernelNum++;");
-                leave
-                write("}");
-                //Otherwise fire kernel and increment fireCount
-                write("else")
-                write("{")
-                enter
-                write("fireCount++;")
-                write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
-                leave
-                write("}")
-                write("break;")
-                leave
-            }
-            //If writing out code for the last kernel
-            else if (id == segment.last.index) 
-            {
-                write(s"case ${id}:")
-                enter
-                if (sp.parameters.get[Int]('debug) >= 2)
-                    write(s"std::cout << 'k' << ${id} << std::endl;")
-                //If the input buffer < this kernel's input rate, move back a kernel
-                write(s"if (${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate)")
-                write("{")
-                enter
-                write("fireKernelNum--;")
-                leave
-                write("}")
-                //Otherwise fire kernel and increment fireCount
-                write("else")
-                write("{")
-                enter
-                write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
-                leave
-                write("}")
-                write("break;")
-                leave
-            }
-            else 
-            {
-                write(s"case ${id}:")
-                enter
-                if (sp.parameters.get[Int]('debug) >= 2)
-                    write(s"std::cout << 'k' << ${id} << std::endl;")
-                //If the output buffer is full or the input buffer < input rate and the next kernel has input then move onto the next kernel
-                write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.label}.priv.outrate) > ${kernel.getOutputs(0).parameters.get[Int]('queueDepth)} || ((${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).label}.priv.inrate))")
-                write("{")
-                enter
-                write("fireKernelNum++;")
-                leave
-                write("}")
-                //If the input buffer < input rate (and the output buffer didn't have input) then move to the previous kernel
-                write(s"else if (${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate)")
-                write("{")
-                enter
-                write("fireKernelNum--;")
-                leave
-                write("}")
-                //Otherwise fire the kernel
-                write("else")
-                write("{")
-                enter
-                write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
-                leave
-                write("}")
-                write("break;")
-                leave
-            } 
-        }
-        leave
-        write("}") // switch(fireKernelNum)
-        leave
-        write("}") // while (inputEmpty == false)
-        leave
-        write("}") // static void fire_segment${segId}()
-    }
+//     private def emitSegmentFireIterations(segment: SPSegment) {
+//         if (segment != sp.segments.head && segment != sp.segments.last) {
+//             write(s"int seg${segment.id}_fire_iterations() {")
+//             enter
+//                 write(s"if (!std::min(segFireCount[${segment.id-2}]/${segment.input_rate}, (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate})) {")
+//                 enter
+//                     write(s"std::cout << ${"\"This shouldn't happen. Press enter to continue...\""} << std::endl;")
+//                     write("std::cin.get();")
+//                 leave
+//                 write("}")
+//                 write(s"return std::min(segFireCount[${segment.id-2}]/${segment.input_rate}, (${segment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)} - segFireCount[${segment.id-1}])/${segment.output_rate});")
+//             leave
+//             write("}")
+//         }
+//     }
+//     
+//     // Bool function to return if segment is fireable
+//     private def emitSegmentFireable(spsegment: SPSegment) {
+//         val segId = spsegment.id
+//         
+//         //Lists the segment's kernels and all the kernels
+//         val segment = spsegment.kernels
+//         val localInstances = sp.instances.filter { instance =>
+//             instance.device != null && instance.device.host == host
+//         }
+//         val cpuInstances = localInstances.filter { instance =>
+//             shouldEmit(instance.device)
+//         }
+//         //Queue depths and rates
+//         var outqueuedepth = 1
+//         if (spsegment.kernels.last.getOutputs.length != 0)
+//             outqueuedepth = spsegment.kernels.last.getOutputs(0).parameters.get[Int]('queueDepth)
+//         var inqueuedepth = 1
+//         if (spsegment.kernels.head.getInputs.length != 0)
+//             inqueuedepth = spsegment.kernels.head.getInputs(0).parameters.get[Int]('queueDepth)
+//         val segOutRate = spsegment.output_rate
+//         val segInRate = spsegment.input_rate
+//         write(s"bool segment${segId}_is_fireable()")
+//         write("{")
+//         enter
+//         
+//         //If it's the first kernel
+//         if (segment.head.kernel.inputs.length == 0)
+//         {
+//             //If the next segment is on a different processor, use get_available
+//             if (spsegment.tid != sp.segments(segId).tid)
+//                 write(s"int segmentFireIterations = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
+//             //Otherwise use the segFireCount array
+//             else
+//                 write(s"int segmentFireIterations = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
+//             //If the number of iterations is 0 or less than half it's maximum fires, return false
+//             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${(outqueuedepth/segOutRate)} * .5)")
+//             enter
+//             write("return false;")
+//             leave
+// 
+//             write("return true;")
+// 
+//         }
+//         //If it's a middle kernel
+//         else if (segment.last.kernel.outputs.length != 0)
+//         {
+//             //If the previous segment is on a different processor, use get_available
+//             if (spsegment.tid != sp.segments(segId-2).tid)
+//                 write(s"int maxInputFires = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+//             //Otherwise use the segFireCount array
+//             else
+//                 write(s"int maxInputFires = segFireCount[${spsegment.id-2}] / ${segInRate};")
+//             //If the next segment is on a different processor, use get_available
+//             if (spsegment.tid != sp.segments(segId).tid)
+//                 write(s"int maxOutputFires = (${outqueuedepth} - ${cpuInstances(spsegment.kernels.last.index).label}_get_available(0))/${segOutRate};")
+//             //Otherwise use the segFireCount array
+//             else
+//                 write(s"int maxOutputFires = (${outqueuedepth} - segFireCount[${spsegment.id-1}])/${segOutRate};")
+//                 
+//             //Segment fire iterations is the min of the max output fires and input fires
+//             write(s"int segmentFireIterations = std::min(maxOutputFires, maxInputFires);")
+//             //If the number of iterations is 0 or less than half it's maximum fires, return false
+//             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${Math.min(inqueuedepth/segInRate,outqueuedepth/segOutRate)} * .5)")
+//             enter
+//             write("return false;")
+//             leave
+//             
+//             write("return true;")
+//         }
+//         //If it's the last kernel
+//         else {
+//             //If the previous segment is on a different processor, use get_available
+//             if (spsegment.tid != sp.segments(segId-2).tid)
+//                 write(s"int segmentFireIterations = ${cpuInstances(spsegment.kernels.head.index-1).label}_get_available(0)/${segInRate};")
+//             //Otherwise use the segFireCount array
+//             else
+//                 write(s"int segmentFireIterations = segFireCount[${spsegment.id-2}] / ${segInRate};")
+//             //If the number of iterations is 0 or less than half it's maximum fires, return false
+//             write(s"if (segmentFireIterations == 0 || segmentFireIterations < ${inqueuedepth/segInRate} * .5)")
+//             enter
+//             write("return false;")
+//             leave
+//             
+//             write("return true;")
+// 
+//         }
+//         leave
+//         write("}")
+//     }
+//     
+//     //Function to fire all kernels in a segment
+//     private def emitSegmentFire(spsegment: SPSegment) {
+//         //Set variables for this segment
+//         val segId = spsegment.id
+//         val segment = spsegment.kernels
+//         val localInstances = sp.instances.filter { instance =>
+//             instance.device != null && instance.device.host == host
+//         }
+//         val cpuInstances = localInstances.filter { instance =>
+//             shouldEmit(instance.device)
+//         }
+//         
+//         write(s"static void fire_segment${segId}()")
+//         write(s"{")
+//         enter
+//         
+//         //If it's a single kernel in a segment, no control structures needed. Just fire the one kernel
+//         if (segment.head == segment.last)
+//         {
+//             val id = segment.head.index
+//             
+//             write(s"sp_${segment.head.name}_run(&${segment.head.label}.priv);")
+//             leave
+//             write("}")
+//             
+//             return
+//         }
+//         
+//         //Write run_thread variables
+//         write(s"int fireKernelNum = ${segment.last.index};");
+//         write("int fireCount = 0;");
+//         write("int total = 1;")
+//         write("bool inputEmpty = false;");
+//         
+//         //Create while loop to run until the fireCount == requested total
+//         write("while (inputEmpty == false)");
+//         write("{");
+//         enter
+//         //Switch statement to determine which kernel to fire
+//         write("switch (fireKernelNum)");
+//         write("{");
+//         enter
+//         //Iterate through 1 to # of kernels
+//         for (kernel <- segment.reverse) {
+//             val name = kernel.name //kernel#
+//             val instance = kernel.label //instance#
+//             val id = kernel.index //#
+//             
+//             //If writing out code for first kernel
+//             if (id == segment.head.index)
+//             {
+//                 write(s"case ${id}:")
+//                 enter
+//                 if (sp.parameters.get[Int]('debug) >= 2)
+//                     write(s"std::cout << 'k' << ${id} << std::endl;")
+//                 //If it has fired the requested total and the output buffer < the next kernel's required input then end
+//                 write(s"if (fireCount >= total && ${cpuInstances(id).label}_get_available(0) < ${cpuInstances(id).label}.priv.inrate)");
+//                 write("{");
+//                 enter
+//                 write("inputEmpty = true;");
+//                 write("break;");
+//                 leave
+//                 write("}");
+//                 //If it has fired the requested total then move onto the next kernel
+//                 write("else if (fireCount >= total)");
+//                 write("{");
+//                 enter
+//                 write("fireKernelNum++;");
+//                 write("break;");
+//                 leave
+//                 write("}");
+//                 //If the current size of output buffer + this kernel's output rate > total size of the output buffer then move onto the next kernel
+//                 write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.label}.priv.outrate) > ${kernel.getOutputs(0).parameters.get[Int]('queueDepth)})");
+//                 write("{");
+//                 enter
+//                 write("fireKernelNum++;");
+//                 leave
+//                 write("}");
+//                 //Otherwise fire kernel and increment fireCount
+//                 write("else")
+//                 write("{")
+//                 enter
+//                 write("fireCount++;")
+//                 write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
+//                 leave
+//                 write("}")
+//                 write("break;")
+//                 leave
+//             }
+//             //If writing out code for the last kernel
+//             else if (id == segment.last.index) 
+//             {
+//                 write(s"case ${id}:")
+//                 enter
+//                 if (sp.parameters.get[Int]('debug) >= 2)
+//                     write(s"std::cout << 'k' << ${id} << std::endl;")
+//                 //If the input buffer < this kernel's input rate, move back a kernel
+//                 write(s"if (${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate)")
+//                 write("{")
+//                 enter
+//                 write("fireKernelNum--;")
+//                 leave
+//                 write("}")
+//                 //Otherwise fire kernel and increment fireCount
+//                 write("else")
+//                 write("{")
+//                 enter
+//                 write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
+//                 leave
+//                 write("}")
+//                 write("break;")
+//                 leave
+//             }
+//             else 
+//             {
+//                 write(s"case ${id}:")
+//                 enter
+//                 if (sp.parameters.get[Int]('debug) >= 2)
+//                     write(s"std::cout << 'k' << ${id} << std::endl;")
+//                 //If the output buffer is full or the input buffer < input rate and the next kernel has input then move onto the next kernel
+//                 write(s"if ((${cpuInstances(id).label}_get_available(0) + ${kernel.label}.priv.outrate) > ${kernel.getOutputs(0).parameters.get[Int]('queueDepth)} || ((${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate) && ${cpuInstances(id).label}_get_available(0) > ${cpuInstances(id).label}.priv.inrate))")
+//                 write("{")
+//                 enter
+//                 write("fireKernelNum++;")
+//                 leave
+//                 write("}")
+//                 //If the input buffer < input rate (and the output buffer didn't have input) then move to the previous kernel
+//                 write(s"else if (${kernel.label}_get_available(0) < ${kernel.label}.priv.inrate)")
+//                 write("{")
+//                 enter
+//                 write("fireKernelNum--;")
+//                 leave
+//                 write("}")
+//                 //Otherwise fire the kernel
+//                 write("else")
+//                 write("{")
+//                 enter
+//                 write(s"sp_${kernel.name}_run(&${kernel.label}.priv);")
+//                 leave
+//                 write("}")
+//                 write("break;")
+//                 leave
+//             } 
+//         }
+//         leave
+//         write("}") // switch(fireKernelNum)
+//         leave
+//         write("}") // while (inputEmpty == false)
+//         leave
+//         write("}") // static void fire_segment${segId}()
+//     }
     
     
     private def emitThread(tid: Int)
@@ -778,6 +778,9 @@ private[scalapipe] class CPUResourceGenerator(
                     write(s"if (segmentList[${segId-1}]->isFireable() && fireCount < total)");
                     write("{");
                     enter
+                        // First load the segment
+                        write(s"segmentList[${segId-1}]->load();")
+                        
                         if (sp.parameters.get[Int]('debug) >= 1)
                             write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")
                         write(s"int segmentFireIterations = segmentList[${segId-1}]->fireIterations(segFireCount);")

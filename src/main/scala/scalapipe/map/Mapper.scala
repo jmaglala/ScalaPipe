@@ -14,22 +14,6 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
     // Compute Stream gains
     def compute_gains()
     {
-        /*val stream_cnt = sp.streams.size
-        var gain = 1;
-        for ( i <- 1 to stream_cnt+1)
-        {
-            val stream = sp.streams.filter(s =>( s.index == i)).head
-            if (i == 0)
-            {
-                stream.gain = gain
-            }
-            else
-            {
-                
-                gain = gain * (stream.sourceKernel.getConfig("outrate").long.toInt / stream.sourceKernel.getConfig("inrate").long.toInt)
-                stream.gain = gain
-            }
-        }*/
         var sorted_streams = sp.streams.toSeq.sortBy(s => (s.index))
         var gain : Double = 1
         for (stream <- sorted_streams)
@@ -43,7 +27,8 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
                 gain = gain * (stream.sourceKernel.kernel.outputs(0).rate.toDouble / stream.sourceKernel.kernel.inputs(0).rate.toDouble)
             }
             stream.gain = gain
-            println(Math.round(stream.gain))
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println(Math.round(stream.gain))
         }
     }
     

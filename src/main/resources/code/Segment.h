@@ -42,6 +42,7 @@ public:
     bool isFireable();
     int fireIterations(int *);
     void fire();
+    void load();
 
 private:
     void allocate_memory();     // Allocate memory for the kernel states and internal edges
