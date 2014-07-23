@@ -66,23 +66,52 @@ private[scalapipe] class RuntimeSegMapper(
                 }
             }
         }
-        var segs = min_ids(procs-1)(mods-1)
+        var segs = Array[Int]()
+        segs :+= 0
+        min_ids(procs-1)(mods-1).foreach(segs :+= _)
         
         segs = segs.sortWith(_ < _)
         
-        //segs.foreach(println)
+        segs.foreach(println)
         
+        val seg_starts = segs(segs.length-1)
+        var segid = 0
+        var segList = Seq[SPSegment]()
+        for (index <- 0 to segs.length - 1) {
+            var startKern = segs(index)
+            var endKern = 0
+            if (index == segs.length-1) {
+                endKern = modules.length - 1
+            }
+            else {
+                endKern = segs(index+1) - 1
+            }
+            var segment = Seq[KernelInstance]()
+            println("start: " + startKern + " end: " + endKern)
+            for (kernIndex <- startKern to endKern) {
+                segment :+= modules(kernIndex)
+            }
+            segid += 1
+            var sps = new SPSegment(segid)
+            sps.kernels = segment
+            segList :+= sps
+        }
+        sp.segments = segList
         
-        /*for (segment <- sp.segments) {
+        for (segment <- sp.segments) {
             print(segment.id + ") ")
-            for(k <- segment.kernels)
-                {
+            for(k <- segment.kernels) {
                     if (sp.parameters.get[Int]('debug) >= 2)
                         print(k)
                     kernelToSPSegment += (k -> segment)
                 }
             //segment.foreach(println)
-            segment.initVariables()*/
+            segment.initVariables()
+            if (sp.parameters.get[Int]('debug) >= 2)
+            {
+                println('\n' + "in:" + segment.input_rate + " out:" + segment.output_rate + " threshold:" + segment.threshold + " amp:" + segment.amplification + " run:" + segment.runtime + " state:" + segment.state + '\n')
+            }
+        }
     }
     
     def assign_segments_to_cores() : Unit = {

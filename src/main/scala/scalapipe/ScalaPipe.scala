@@ -501,6 +501,9 @@ private[scalapipe] class ScalaPipe {
                 case "GainNSeg" =>
                     val m = new GainNSegMapper(this,nEdges)
                     m
+                case "BothSeg" =>
+                    val m = new BothSegMapper(this)
+                    m
             }
         }
         mapper.map()
