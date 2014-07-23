@@ -130,6 +130,12 @@ private[scalapipe] class CKernelGenerator(
             write(s"$vtype *$name;")
         }
 
+        // Write out the verbatim code
+        for (s <- kt.verbatims)
+        {
+            write(s"$s")
+        }
+        
         // Generate the code.
         val nodeEmitter = new CKernelNodeEmitter(kt, timing)
         nodeEmitter.emit(kt.expression)

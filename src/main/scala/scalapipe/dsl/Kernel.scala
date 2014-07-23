@@ -18,6 +18,7 @@ class Kernel(val name: String) extends LowPriorityImplicits with DebugInfo {
     private[scalapipe] val externals = new ListBuffer[Platforms.Value]
     private[scalapipe] val dependencies = new DependencySet
     private[scalapipe] val scopeStack = new ListBuffer[scalapipe.Scope]
+    private[scalapipe] val verbatims = new ListBuffer[String]
 
     def this() = this(LabelMaker.getKernelLabel)
 
@@ -54,7 +55,10 @@ class Kernel(val name: String) extends LowPriorityImplicits with DebugInfo {
         inputs += new KernelInput(label, vt)
         node
     }
-
+    def verbatim(s: String) {
+        verbatims += s
+    }
+    
     def config(t: Type, n: Symbol, v: Any = null): Variable = {
         val node = new Variable(n.name, this)
         configs += new KernelConfig(n.name, t.create(), v)
