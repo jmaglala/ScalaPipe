@@ -388,7 +388,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"$instance.data.get_available = ${instance}_get_available;")
         write(s"$instance.data.read_value = ${instance}_read_value;")
         write(s"$instance.data.release = ${instance}_release;")
-
+        
         // Clock
         write(s"spc_init(&${instance}.clock);")
 
