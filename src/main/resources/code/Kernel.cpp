@@ -57,11 +57,11 @@ void Kernel::init()
 bool Kernel::fireable()
 {
     bool fireable = true;
-    if (outputs.size() > 1)
+    if (outputs.size() > 0)
     {
         fireable = fireable && outputs[0]->ready(outrate,true);
     }
-    if (inputs.size() > 1)
+    if (inputs.size() > 0)
     {
         fireable = fireable && inputs[0]->ready(inrate,false);
     }

@@ -142,6 +142,7 @@ void Segment::update_next_seg() {
 //      std::cout << "Seg" << id << " notify next seg" << std::endl;
         write_buf_fireable = false;
         next_seg->read_buf_fireable = true;
+        std::cout << id << ": Updating next" << std::endl;
     }
 }
 
@@ -153,6 +154,7 @@ void Segment::update_prev_seg() {
 //      std::cout << "Seg" << id << " notify prev seg" << std::endl;
         read_buf_fireable = false;
         prev_seg->write_buf_fireable = true;
+        std::cout << id << ": Updating prev" << std::endl;
     }
 }
 
@@ -166,7 +168,60 @@ void Segment::load()
 }
 
 void Segment::fire() {
+    /* Fire the first kernel
+    kernelList[0]->run();
+    if (in_buf_size > 0) {
+        read_count++;
+        update_prev_seg();
+    }
+    if (kernelList.size() == 1)
+    {
+        if (out_buf_size > 0)
+        {
+            write_count++;
+            update_next_seg();
+        }
+        return;
+    }
     
+    int fireKernelNum = 1;
+    for(;;)
+    {
+        // If the current kernel is ready to fire
+        if (kernelList[fireKernelNum]->fireable())
+        {
+            kernelList[fireKernelNum]->run();
+            // If we're at the end, update
+            if (fireKernelNum == kernelList.size()-1)
+            {
+                if (out_buf_size > 0)
+                {
+                    write_count++;
+                    update_next_seg();        
+                }
+            }
+            else
+            {
+                // Move on
+                fireKernelNum++;
+            }
+        }
+        else
+        {
+            // If we're back to 1 then we're done
+            if (fireKernelNum == 1)
+            {
+                break;
+            }
+            // Otherwise just backup
+            else
+            {
+                fireKernelNum--;
+            }
+        }
+    }*/
+    
+    // Handle the rest
     //If there's only one kernel, fire it and return
     if (kernelList.size() == 1) {
         if (in_buf_size > 0) {
