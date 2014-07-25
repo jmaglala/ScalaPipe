@@ -208,6 +208,7 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         {
             val count = cross_buff(s)
             s.parameters.set('queueDepth, count)    
+            println(s.parameters.get('queueDepth))
             s.parameters.set('crossedge, true)
         }
         if (sp.parameters.get[Int]('debug) >= 2)
@@ -226,17 +227,26 @@ private[scalapipe] trait MinBufResize extends Mapper{
 
     var kernelToSPSegment = Map[KernelInstance,SPSegment]()
 
+    def cross_buff(s: Stream): Int = 
+    {
+        val source = s.sourceKernel.kernel.outputs(0).rate
+        val dest = s.destKernel.kernel.inputs(0).rate
+        
+        return lcm(source,dest)
+    }
+    
     def assign_cross_buffers()
     {
         
         // Cross streams (connect kernels on different segments)
         if (sp.parameters.get[Int]('debug) >= 2)
-                println("\nASSIGNING CROSS BUFFERS")
+                println("\nASSIGNING CROSS BUFFERSG")
         val crossStreams = sp.streams.filter(s =>(kernelToSPSegment(s.sourceKernel) != kernelToSPSegment(s.destKernel) ))
-
+        println(crossStreams.size)
+        
         for (s <- crossStreams)
         {
-            var i = 0
+            /*var i = 0
             for (segment <- sp.segments) {
                 if (s.sourceKernel == segment.kernels.last)
                     i = segment.id - 1
@@ -251,7 +261,10 @@ private[scalapipe] trait MinBufResize extends Mapper{
             s.parameters.set('queueDepth, newMinBufSize)
             val sourceRateOut: Int = s.sourceKernel.kernel.outputs(0).rate
             val destRate: Int   = s.destKernel.kernel.inputs(0).rate
-            i += 1
+            i += 1*/
+            s.parameters.set('queueDepth, cross_buff(s))
+            println(s.parameters.get('queueDepth))
+            s.parameters.set('crossedge, true)
         }
         if (sp.parameters.get[Int]('debug) >= 2)
             println("DONE WITH CROSS BUFFERS")
