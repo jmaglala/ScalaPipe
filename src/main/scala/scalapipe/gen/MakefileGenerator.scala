@@ -109,8 +109,8 @@ clean:
         write("TTOBJ=" + (if (needTimeTrial) "TimeTrial.o" else ""))
 
         val ipaths_str = ipaths.foldLeft("") { (a, p) => a + " -I" + p }
-        write("EXTRA_CFLAGS=" + ipaths_str)
-        write("EXTRA_CXXFLAGS=" + ipaths_str)
+        write("EXTRA_CFLAGS="  + " -lrt " + ipaths_str)
+        write("EXTRA_CXXFLAGS="  + " -lrt " + ipaths_str)
 
         val lpaths_str = lpaths.foldLeft("") { (a, p) => a + " -L" + p }
         val libs_str = libraries.foldLeft("") { (a, l) => a + " -l" + l }

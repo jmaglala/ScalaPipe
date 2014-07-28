@@ -530,6 +530,7 @@ private[scalapipe] class CPUResourceGenerator(
         write("#include <pthread.h>")
         write("#include <signal.h>")
         write("#include <sstream>")
+        write("#include <time.h>")
 
         // Get streams on this host.
         val localStreams = sp.streams.filter { s =>
