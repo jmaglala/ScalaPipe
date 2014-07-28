@@ -452,6 +452,26 @@ static inline void spq_finish_read(SPQ *q, uint32_t count)
     q->read_ptr += count;
 }
 
+static inline void elapsed(struct timespec* result, struct timespec* x, struct timespec* y)
+{
+    /* Perform the carry for the later subtraction by updating y. */
+    if (x->tv_nsec < y->tv_nsec) {
+        int nsec = (y->tv_nsec - x->tv_nsec) / 1000000000 + 1;
+        y->tv_nsec -= 1000000000 * nsec;
+        y->tv_sec += nsec;
+    }
+    if (x->tv_nsec - y->tv_nsec > 1000000000) {
+        int nsec = (x->tv_nsec - y->tv_nsec) / 1000000000;
+        y->tv_nsec += 1000000000 * nsec;
+        y->tv_sec -= nsec;
+    }
+    
+    /* Compute the time remaining to wait->
+     t v_usec is certainly positive-> */      
+     result->tv_sec = (time_t) x->tv_sec - y->tv_sec;
+     result->tv_nsec = (time_t)x->tv_nsec - y->tv_nsec;
+}
+
 /** Compute a square root. */
 #define SP_SQRT_FUNC(NAME, TYPE) \
    static inline TYPE NAME(TYPE v) {  \
