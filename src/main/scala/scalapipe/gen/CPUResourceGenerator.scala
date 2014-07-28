@@ -671,6 +671,10 @@ private[scalapipe] class CPUResourceGenerator(
             write(s"pthread_join(thread$t, NULL);")
         }
 
+        write("clock_gettime(CLOCK_MONOTONIC, &end);")
+        write("elapsed(&diff,&end,&start);")
+        write(s"fprintf(stdout, ${'\"'}%ld.%.9ld${"\\n\""},diff.tv_sec,diff.tv_nsec);")
+        
         // Destroy the edges.
         write(edgeDestroy)
 
