@@ -36,11 +36,9 @@ private[scalapipe] class BothSegMapper(
                     for (mod <- modules.slice(i,j+1)) {
                         val modState = mod.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
                         val modRT = mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
-                        var iterations = 0
+                        var iterations : Double = 1
                         if (mod != modules.head)
-                            iterations = mod.getInputs(0).parameters.get[Int]('queueDepth) / mod.kernel.inputs(0).rate
-                        else 
-                            iterations = mod.getOutputs(0).parameters.get[Int]('queueDepth) / mod.kernel.outputs(0).rate
+                            iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
                         
                         space += modState
                         //MAYBE WRONG i-1? index+1?
@@ -48,7 +46,8 @@ private[scalapipe] class BothSegMapper(
                             space += mod.getInputs(0).parameters.get[Int]('queueDepth) * 4
                         }
                         //println("iters: " + iterations + " modRT: " + modRT)
-                        time += iterations * modRT
+                        var normal_rt = iterations * modRT
+                        time += normal_rt.toInt
                     }
                     val cacheSize = sp.parameters.get[Int]('cache)
                     //println(i + " to " + j)

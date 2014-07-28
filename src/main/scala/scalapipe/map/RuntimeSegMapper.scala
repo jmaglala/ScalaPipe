@@ -23,9 +23,13 @@ private[scalapipe] class RuntimeSegMapper(
         var min_rt = Array[Array[Int]]()
         
         //Populate lists with appropriate information
-        for (i <- 0 to (modules.length-1)) {
-            var kernel_rt = modules(i).kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
-            mod_rt :+= kernel_rt
+        for (mod <- modules) {
+            var kernel_rt = mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
+            var iterations : Double = 1
+            if (mod != modules.head)
+                iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
+            var normal_rt = kernel_rt * iterations
+            mod_rt :+= normal_rt.toInt
 
         }
         for (i <- 0 to (procs-1)) {
