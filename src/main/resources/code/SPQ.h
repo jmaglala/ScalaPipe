@@ -11,8 +11,8 @@
 
 #include "Edge.h"
 
-template<typename T>
-class SPQ : public Edge<T>
+
+class SPQ : public Edge
 {
 protected:
     uint64_t m_read_pos;
@@ -22,8 +22,8 @@ protected:
 public:
     SPQ(uint64_t size);
     
-    T read();
-    void write(const T val);
+    int read();
+    void write(const int val);
     uint64_t get_available();
     bool ready(uint64_t change, bool writing);
     bool full();

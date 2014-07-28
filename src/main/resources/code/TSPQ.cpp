@@ -67,20 +67,20 @@ bool TSPQ::full()
     return (curr_pos+1) % this->m_size == m_read_pos.load(std::memory_order_acquire);
 }
 
-template<typename T>
-T TSPQ<T>::read()
+
+int TSPQ::read()
 {
     while(empty())
         ;
     auto curr_pos = m_read_pos.load();
-    T ret = this->m_buff[curr_pos];
+    int ret = this->m_buff[curr_pos];
     m_read_pos.store((curr_pos +1) % this->m_size,std::memory_order_release);
     m_count--;
     return ret;
 }
 
-template<typename T>
-void TSPQ::write(const T val)
+
+void TSPQ::write(const int val)
 {
     while(full())
         ;
