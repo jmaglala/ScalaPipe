@@ -9,18 +9,15 @@
 
 #include <stdint.h>
 
+template <typename T>
 class Edge
 {
 public:
     
     uint64_t m_size;
-    int * m_buff;
+    T m_buff;
     bool m_initialized;
     
-    //Kernel * source;
-    //Kernel * dest;
-    
-    // New interface
     Edge(){}
     ~Edge(){}
     
@@ -32,7 +29,7 @@ public:
     virtual bool full() = 0;
     virtual bool empty() = 0;
     
-    void set_buff(int * buff = NULL);
+    void set_buff(T buff = NULL);
     bool is_initd();
     
     // Size in bytes

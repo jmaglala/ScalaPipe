@@ -52,19 +52,21 @@ bool SPQ::full()
     return (m_write_pos + 1) % this->m_size == m_read_pos;
 }
 
+template<typename T>
 // A blocking read
-int SPQ::read()
+T SPQ<T>::read()
 {
     while(empty())
         ;
-    int ret = this->m_buff[m_read_pos];
+    T ret = this->m_buff[m_read_pos];
     m_read_pos = (m_read_pos + 1) % this->m_size;
     m_count--;
     return ret;
 }
 
 // A blocking write
-void SPQ::write(const int val)
+template<typename T>
+void SPQ::write<T>(const T val)
 {
     while(full())
         ;

@@ -16,7 +16,8 @@
 
 #include "Edge.h"
 
-class TSPQ : public Edge
+template<typename T>
+class TSPQ : public Edge<T>
 {
 protected:
     
@@ -29,8 +30,8 @@ protected:
     
     
 public:
-    int read();
-    void write(const int val);
+    T read();
+    void write(const T val);
     
     bool ready(uint64_t change, bool writing);
     bool full();

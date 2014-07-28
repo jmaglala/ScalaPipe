@@ -3,9 +3,10 @@
 
 #include "Edge.h"
 
-uint64_t Edge::get_size()
+template<typename T>
+uint64_t Edge<T>::get_size()
 {
-    return this->m_size * sizeof(int);
+    return this->m_size * sizeof(T);
 }
 
 bool Edge::is_initd()
@@ -13,7 +14,8 @@ bool Edge::is_initd()
     return this->m_initialized;
 }
 
-void Edge::set_buff(int * buff)
+template<typename T>
+void Edge<T>::set_buff(T * buff)
 {
     if (buff == NULL)
         posix_memalign((void**)&this->m_buff,ALIGN, this->get_size());
