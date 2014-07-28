@@ -663,6 +663,9 @@ private[scalapipe] class CPUResourceGenerator(
 
         write("atexit(showStats);")
 
+        write("struct timespec start, end, diff;")
+        write("clock_gettime(CLOCK_MONOTONIC, &start);")
+        
         // Start the threads.
         for (t <- threadIds.values) {
             write(s"pthread_create(&thread$t, NULL, run_thread$t, NULL);")
