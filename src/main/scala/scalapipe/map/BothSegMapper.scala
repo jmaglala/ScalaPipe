@@ -17,13 +17,13 @@ private[scalapipe] class BothSegMapper(
         val modules = sp.instances
         var edges = sp.streams.toSeq.sortBy(s => (s.index))
     
-        var segment_load = Array[Seq[Double]]()
-        var segmentation = Array[Seq[SPSegment]]()
+        var segment_load = Array[Array[Double]]()
+        var segmentation = Array[Array[Seq[SPSegment]]]()
         
         //var segid = 0
         for (i <- 0 to modules.length-1) {
-            segment_load :+= Seq[Double]()
-            segmentation :+= Seq[SPSegment]()
+            segment_load :+= Array[Double]()
+            segmentation :+= Array[Seq[SPSegment]]()
             
             var segments = Seq[SPSegment]()
             for (j <- 0 to modules.length-1) {
@@ -41,7 +41,6 @@ private[scalapipe] class BothSegMapper(
                             iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
                         
                         space += modState
-                        //MAYBE WRONG i-1? index+1?
                         if (mod.index-1 != i) {
                             space += mod.getInputs(0).parameters.get[Int]('queueDepth) * 4
                         }
@@ -81,7 +80,7 @@ private[scalapipe] class BothSegMapper(
                 //println()
                 //END CALC LOAD
                 segment_load(i) :+= load
-                segmentation(i) = segments
+                segmentation(i) :+= segments
             }
         }
         println("Loads calculated")
@@ -179,15 +178,15 @@ private[scalapipe] class BothSegMapper(
             else {
                 endKern = segment_starts(index+1) - 1
             }
-            var segment = Seq[KernelInstance]()
+            //var segment = Seq[KernelInstance]()
             println("start: " + startKern + " end: " + endKern)
-            for (kernIndex <- startKern to endKern) {
-                segment :+= modules(kernIndex)
+            for (segment <- segmentation(startKern)(endKern))
+            {
+                segment.id = segid
+                segment.tid = index
+                segid += 1
+                segList :+= segment
             }
-            segid += 1
-            var sps = new SPSegment(segid)
-            sps.kernels = segment
-            segList :+= sps
         }
         
         sp.segments = segList
