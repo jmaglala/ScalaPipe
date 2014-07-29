@@ -128,7 +128,8 @@ private[scalapipe] class BothSegMapper(
                 segment_load(i) :+= calc_load(i,j)
             }
         }
-        println("Loads calculated")
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("Loads calculated")
         
         var L_min = -1
         var L_max = -1
@@ -149,13 +150,13 @@ private[scalapipe] class BothSegMapper(
             }
             
         }
-        println("Max L = " + L_max)
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("Max L = " + L_max)
         var L_next = L_min + (L_max - L_min)/2
         var loadfound = false
         var segments = Array[Int]()
         while (!loadfound)
         {
-            println("Guessing " + L_guess)
             L_guess = L_next
             segments = schedule_maxload(L_guess)
             if (segments(0) == 1)
@@ -168,7 +169,8 @@ private[scalapipe] class BothSegMapper(
             if (L_guess == L_next)
                 loadfound = true
         }
-        println("Load found: " + L_guess)
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("Load found: " + L_guess)
         var segid = 0
         
         for (index <- 1 to segments.length - 1) {
@@ -180,7 +182,6 @@ private[scalapipe] class BothSegMapper(
             else {
                 endKern = segments(index+1) - 1
             }
-            println("start: " + startKern + " end: " + endKern)
             for (segment <- segmentation(startKern)(endKern))
             {
                 segment.id = segid
