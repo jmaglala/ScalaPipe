@@ -13,184 +13,183 @@ private[scalapipe] class BothSegMapper(
     val _sp: ScalaPipe
     ) extends Mapper(_sp) with AugmentBuffer
 {
+    var segmentation = Array[Array[Seq[SPSegment]]]()
+    var segment_load = Array[Array[Double]]()
+    
+    // Calculate the load if modules i-j were all assigned to the same core
+    def calc_load(i: Int, j: Int) : Double = 
+    {
+        val modules = sp.instances
+        val cacheSize = sp.parameters.get[Int]('cache)
+        var miss_time = 3
+        var time = 0.0
+        var space = 0
+        for (mod <- modules.slice(i,j+1)) 
+        {
+            // Add up the modules state
+            space += mod.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
+            
+            // Normalize the runtime
+            var iterations : Double = 1
+            if (mod != modules.head)
+                iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
+            val normal_rt = iterations * mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
+            // TODO: Might need to use doubles throughout
+            time += normal_rt
+            
+            // Add the space for the internal buffer
+            if (mod.index-1 != i)
+                space += mod.getInputs(0).parameters.get[Int]('queueDepth) * 4
+        }
+        var segments = Seq[SPSegment]()
+        var load: Double = 0 
+        if (space < cacheSize) 
+        {
+            var miss_rate: Double = 0
+            if (modules(i).getInputs.length != 0)
+                    miss_rate += modules(i).getInputs(0).gain
+            if (modules(j).getOutputs.length != 0)
+                    miss_rate += modules(j).getOutputs(0).gain
+            load = time + miss_time * miss_rate
+            val seg = new SPSegment(0)
+            for (mod_id <- i to j) {
+                seg.kernels :+= modules(mod_id)
+            }
+            segments :+= seg
+        }
+        else 
+        {
+            load = time
+            segments = int_best_partition(i,j)
+            for (segment <- segments) {
+                if (modules(i).getInputs.length != 0)
+                    load += modules(i).getInputs(0).gain * miss_time
+                    
+                if (modules(j).getOutputs.length != 0)
+                    load += modules(j).getOutputs(0).gain * miss_time
+            }
+        }
+        segmentation(i) :+= segments
+        return load
+    }
+
+    // Find a schedule for a given maximum load on one processor
+    def schedule_maxload(max_load : Int) : Array[Int] =
+    {
+        // Container for the return information. segments[0] holds a boolean value stating if the load was too small or not
+        var segments = Array[Int]()
+        val modules = sp.instances
+        segments :+= 0
+        var mod_start = 0
+        var mod_end = 0
+        var building = true
+        var done = false
+        for (proc_id <- 0 to sp.parameters.get[Int]('cores)-1) 
+        {
+            done = false
+            while (building && !done)
+            {
+                mod_end += 1
+                // If we ran out of modules
+                if (mod_end + 1 >= modules.length)
+                {
+                    segments :+= mod_start
+                    building = false
+                }
+                else if (segment_load(mod_start)(mod_end+1) > max_load)
+                {
+                    segments :+= mod_start
+                    mod_start = mod_end + 1
+                    mod_end = mod_end + 1
+                    done = true
+                }
+            }
+        }
+        // We couldn't schedule, L was too small
+        if (mod_end < modules.length-1)
+            segments(0) = 1
+        // We could schedule, L was probably too large
+        else
+            segments(0) = 0
+        return segments
+    }
+    
     def create_segments() : Unit = {
         val modules = sp.instances
         var edges = sp.streams.toSeq.sortBy(s => (s.index))
     
-        var segment_load = Array[Seq[Double]]()
-        var segmentation = Array[Seq[SPSegment]]()
-        
         //var segid = 0
         for (i <- 0 to modules.length-1) {
-            segment_load :+= Seq[Double]()
-            segmentation :+= Seq[SPSegment]()
+            segment_load :+= Array[Double]()
+            segmentation :+= Array[Seq[SPSegment]]()
             
             var segments = Seq[SPSegment]()
             for (j <- 0 to modules.length-1) {
-                //CALC LOAD
-                var miss_time = 3
-                var time = 0
-                var space = 0
-                var load: Double = 0
-                if (i <= j) {
-                    for (mod <- modules.slice(i,j+1)) {
-                        val modState = mod.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt
-                        val modRT = mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
-                        var iterations : Double = 1
-                        if (mod != modules.head)
-                            iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
-                        
-                        space += modState
-                        //MAYBE WRONG i-1? index+1?
-                        if (mod.index-1 != i) {
-                            space += mod.getInputs(0).parameters.get[Int]('queueDepth) * 4
-                        }
-                        //println("iters: " + iterations + " modRT: " + modRT)
-                        var normal_rt = iterations * modRT
-                        time += normal_rt.toInt
-                    }
-                    val cacheSize = sp.parameters.get[Int]('cache)
-                    //println(i + " to " + j)
-                    //println("space: " + space + " cache: " + cacheSize + " time: " + time)
-                    if (space < cacheSize) {
-                        var miss_rate: Double = 0
-                        if (modules(i).getInputs.length != 0)
-                                miss_rate += modules(i).getInputs(0).gain
-                        if (modules(j).getOutputs.length != 0)
-                                miss_rate += modules(j).getOutputs(0).gain
-                        load = time + miss_time * miss_rate
-                        val seg = new SPSegment(0)
-                        for (mod_id <- i to j) {
-                            seg.kernels :+= modules(mod_id)
-                        }
-                        segments :+= seg
-                    }
-                    else {
-                        load = time
-                        segments = int_best_partition(i,j)
-                        for (segment <- segments) {
-                            if (modules(i).getInputs.length != 0)
-                                load += modules(i).getInputs(0).gain * miss_time
-                                
-                            if (modules(j).getOutputs.length != 0)
-                                load += modules(j).getOutputs(0).gain * miss_time
-                        }
-                    }
-                }
-                //println("load: " + load)
-                //println()
-                //END CALC LOAD
-                segment_load(i) :+= load
-                segmentation(i) = segments
+                segment_load(i) :+= calc_load(i,j)
             }
         }
-        println("Loads calculated")
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("Loads calculated")
         
         var L_min = -1
         var L_max = -1
         var L_guess = 1
-        var endLoop = false
-        while (endLoop == false) {
-            //START SCHEDULE_MAXLOAD
-            var segments = Array[Int]()
-            var mod_start = 0
-            var mod_end = 0
-            var building = true
-            for (proc_id <- 0 to sp.parameters.get[Int]('cores)-1) {
-                while (building) {
-                    mod_end += 1
-                    if (mod_end + 1 >= modules.length) {
-                        segments :+= mod_start
-                        building = false
-                    }
-                    else if (segment_load(mod_start)(mod_end+1) > L_guess) {
-                        segments :+= mod_start
-                        mod_start = mod_end+1
-                        mod_end = mod_end+1
-                        building = false
-                    }
-                }
-                if (mod_end+1 <= modules.length) {
-                    building = true
-                }
-            }
-            
-            if (mod_end < modules.length-1) {
+        
+        // Find the max load
+        var maxfound = false
+        while (!maxfound) 
+        {
+            var segments = schedule_maxload(L_guess)
+            if (segments(0) == 1)
                 L_guess *= 2
-            }
-            else {
+            else
+            {
                 L_min = L_guess / 2
                 L_max = L_guess
-                endLoop = true
+                maxfound = true
             }
+            
         }
-        println("Max L = " + L_max)
-        
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("Max L = " + L_max)
         var L_next = L_min + (L_max - L_min)/2
-        endLoop = false
-        var segment_starts = Array[Int]()
-        while (endLoop == false) {
+        var loadfound = false
+        var segments = Array[Int]()
+        while (!loadfound)
+        {
             L_guess = L_next
-            println("Guessing L =  " + L_guess)
-            var segments = Array[Int]()
-            var mod_start = 0
-            var mod_end = 0
-            var building = true
-            for (proc_id <- 0 to sp.parameters.get[Int]('cores)-1) {
-                while (building) {
-                    mod_end += 1
-                    if (mod_end + 1 >= modules.length) {
-                        segments :+= mod_start
-                        building = false
-                    }
-                    if (segment_load(mod_start)(mod_end) > L_guess) {
-                        segments :+= mod_start
-                        mod_start = mod_end+1
-                        mod_end = mod_end+1
-                        building = false
-                    }
-                }
-                if (mod_end+1 < modules.length) {
-                    building = true
-                }
-            }
-            //SMALL = TRUE
-            if (mod_end < modules.length-1) {
+            segments = schedule_maxload(L_guess)
+            if (segments(0) == 1)
                 L_min = L_guess
-            }
-            else {
+            else
+            {
                 L_max = L_guess
             }
             L_next = L_min + (L_max - L_min)/2
-            //SMALL = FALSE
-            if (L_next == L_guess) {
-                segment_starts = segments
-                endLoop = true
-            }
+            if (L_guess == L_next)
+                loadfound = true
         }
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("Load found: " + L_guess)
         var segid = 0
-        var segList = Seq[SPSegment]()
-        for (index <- 0 to segment_starts.length - 1) {
-            var startKern = segment_starts(index)
+        
+        for (index <- 1 to segments.length - 1) {
+            var startKern = segments(index)
             var endKern = 0
-            if (index == segment_starts.length-1) {
+            if (index == segments.length-1) {
                 endKern = modules.length - 1
             }
             else {
-                endKern = segment_starts(index+1) - 1
+                endKern = segments(index+1) - 1
             }
-            var segment = Seq[KernelInstance]()
-            println("start: " + startKern + " end: " + endKern)
-            for (kernIndex <- startKern to endKern) {
-                segment :+= modules(kernIndex)
+            for (segment <- segmentation(startKern)(endKern))
+            {
+                segment.id = segid
+                segment.tid = index-1
+                segid += 1
+                sp.segments :+= segment
             }
-            segid += 1
-            var sps = new SPSegment(segid)
-            sps.kernels = segment
-            segList :+= sps
         }
-        
-        sp.segments = segList
         
         for (segment <- sp.segments) {
             print(segment.id + ") ")

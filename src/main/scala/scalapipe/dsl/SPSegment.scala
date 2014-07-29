@@ -5,7 +5,7 @@ import scalapipe.{KernelInstance}
 class SPSegment (_id: Int) {
     private[scalapipe] var kernels = Seq[KernelInstance]()
 
-    private[scalapipe] val id = _id
+    private[scalapipe] var id = _id
     private[scalapipe] var tid = 0
     
     private[scalapipe] var input_rate: Double = 1
