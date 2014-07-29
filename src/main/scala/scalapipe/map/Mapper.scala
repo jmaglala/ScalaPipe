@@ -27,6 +27,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
                 gain = gain * (stream.sourceKernel.kernel.outputs(0).rate.toDouble / stream.sourceKernel.kernel.inputs(0).rate.toDouble)
             }
             stream.gain = gain
+            println(stream.index + ": " + gain + " ")
             //println(Math.round(stream.gain))
         }
     }
@@ -208,7 +209,7 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
         {
             val count = cross_buff(s)
             s.parameters.set('queueDepth, count)    
-            println(s.parameters.get('queueDepth))
+            println(Math.round(s.gain).toInt)
             s.parameters.set('crossedge, true)
         }
         if (sp.parameters.get[Int]('debug) >= 2)
