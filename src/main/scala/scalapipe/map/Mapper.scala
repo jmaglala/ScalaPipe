@@ -229,7 +229,8 @@ private[scalapipe] trait MinBufResize extends Mapper{
 
     def cross_buff(s: Stream): Int = 
     {
-        val source = s.sourceKernel.kernel.outputs(0).rate
+        val prev_seg_output_rate = kernelToSPSegment(s.sourceKernel).output_rate.toInt
+        val source = prev_seg_output_rate
         val dest = s.destKernel.kernel.inputs(0).rate
         
         return lcm(source,dest)
@@ -237,7 +238,6 @@ private[scalapipe] trait MinBufResize extends Mapper{
     
     def assign_cross_buffers()
     {
-        
         // Cross streams (connect kernels on different segments)
         if (sp.parameters.get[Int]('debug) >= 2)
                 println("\nASSIGNING CROSS BUFFERSG")
