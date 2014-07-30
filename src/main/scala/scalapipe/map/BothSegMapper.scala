@@ -212,9 +212,32 @@ private[scalapipe] class BothSegMapper(
     }
     
     def assign_segments_to_cores() : Unit = {
-        for (i <- 0 to sp.segments.length-1) {
-            
-            sp.segments(i).tid = i
+        val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
+        val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
+        var segNum = 0
+        if (sp.parameters.get[Int]('debug) >= 2) {
+            println("ASSIGNING SEGS TO CORES")
+            println("Min SegPerCore: " + segPerCore)
         }
+        for (i <- 0 to (sp.parameters.get[Int]('cores)-1)) {
+            if (sp.parameters.get[Int]('debug) >= 2)
+                print("Core " + i + ": ")
+            for (j <- 1 to segPerCore) {
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    print(segNum + " ")
+                sp.segments(segNum).tid = i
+                segNum += 1
+            }
+            if (i < (extraSegs)) {
+                if (sp.parameters.get[Int]('debug) >= 2)
+                    print(segNum + " ")
+                sp.segments(segNum).tid = i
+                segNum += 1
+            }
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println()
+        }
+        if (sp.parameters.get[Int]('debug) >= 2)
+            println("DONE ASSIGNING SEGS TO CORES")
     }
 }
