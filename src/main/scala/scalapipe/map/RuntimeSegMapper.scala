@@ -27,11 +27,12 @@ private[scalapipe] class RuntimeSegMapper(
             var kernel_rt = mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
             var iterations : Double = 1
             if (mod != modules.head)
-                iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
+                iterations = mod.getInputs(0).parameters.get[Int]('queueDepth)/ mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
             var normal_rt = kernel_rt * iterations
             mod_rt :+= normal_rt
-
+            println(mod + " " + kernel_rt + " " +normal_rt)
         }
+        println(mod_rt.sum)
         for (i <- 0 to (procs-1)) {
             var tempArray1 = Array[Array[Int]]()
             var tempArray2 = Array[Double]()
@@ -49,7 +50,7 @@ private[scalapipe] class RuntimeSegMapper(
         for (i <- 0 to (procs-1)) {
             for (j <- 0 to (mods-1)) {
                 if (i == 0) {
-                    mod_rt.slice(0,j+1).foreach(min_rt(i)(j) += _ )
+                    min_rt(i)(j) = mod_rt.slice(0,j+1).sum
                 }
                 else if (j == 0) {
                     min_rt(i)(j) = 0.0

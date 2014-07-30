@@ -32,7 +32,7 @@ private[scalapipe] class BothSegMapper(
             // Normalize the runtime
             var iterations : Double = 1
             if (mod != modules.head)
-                iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
+                iterations = mod.getInputs(0).gain * 256 / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
             val normal_rt = iterations * mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
             // TODO: Might need to use doubles throughout
             time += normal_rt
@@ -47,9 +47,9 @@ private[scalapipe] class BothSegMapper(
         {
             var miss_rate: Double = 0
             if (modules(i).getInputs.length != 0)
-                    miss_rate += modules(i).getInputs(0).gain
+                    miss_rate += modules(i).getInputs(0).gain * 256
             if (modules(j).getOutputs.length != 0)
-                    miss_rate += modules(j).getOutputs(0).gain
+                    miss_rate += modules(j).getOutputs(0).gain * 256
             load = time + miss_time * miss_rate
             val seg = new SPSegment(0)
             for (mod_id <- i to j) {
@@ -63,10 +63,10 @@ private[scalapipe] class BothSegMapper(
             segments = int_best_partition(i,j)
             for (segment <- segments) {
                 if (modules(i).getInputs.length != 0)
-                    load += modules(i).getInputs(0).gain * miss_time
+                    load += modules(i).getInputs(0).gain * miss_time * 256
                     
                 if (modules(j).getOutputs.length != 0)
-                    load += modules(j).getOutputs(0).gain * miss_time
+                    load += modules(j).getOutputs(0).gain * miss_time * 256
             }
         }
         segmentation(i) :+= segments
