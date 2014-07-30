@@ -17,10 +17,10 @@ private[scalapipe] class RuntimeSegMapper(
         val mods = modules.length
         
         //Module runtime from source
-        var mod_rt = Seq[Int]()
+        var mod_rt = Array[Double]()
         
         var min_ids = Array[Array[Array[Int]]]()
-        var min_rt = Array[Array[Int]]()
+        var min_rt = Array[Array[Double]]()
         
         //Populate lists with appropriate information
         for (mod <- modules) {
@@ -29,30 +29,30 @@ private[scalapipe] class RuntimeSegMapper(
             if (mod != modules.head)
                 iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
             var normal_rt = kernel_rt * iterations
-            mod_rt :+= normal_rt.toInt
+            mod_rt :+= normal_rt
 
         }
         for (i <- 0 to (procs-1)) {
             var tempArray1 = Array[Array[Int]]()
-            var tempArray2 = Array[Int]()
+            var tempArray2 = Array[Double]()
             for (j <- 0 to (mods-1)) {
                 tempArray1 :+= Array[Int]()
-                tempArray2 :+= 0
+                tempArray2 :+= 0.0
             }
             min_ids :+= tempArray1
             min_rt :+= tempArray2
         }
         
         var min_k = 0
-        var t_min_rt = 0
-        var seg_rt = 0
+        var t_min_rt = 0.0
+        var seg_rt = 0.0
         for (i <- 0 to (procs-1)) {
             for (j <- 0 to (mods-1)) {
                 if (i == 0) {
-                    min_rt(i)(j) = mod_rt.slice(0,j+1).sum
+                    mod_rt.slice(0,j+1).foreach(min_rt(i)(j) += _ )
                 }
                 else if (j == 0) {
-                    min_rt(i)(j) = 0
+                    min_rt(i)(j) = 0.0
                 }
                 else {
                     min_k = j
