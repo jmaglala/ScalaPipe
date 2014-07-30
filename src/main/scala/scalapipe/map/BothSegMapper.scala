@@ -47,9 +47,9 @@ private[scalapipe] class BothSegMapper(
         {
             var miss_rate: Double = 0
             if (modules(i).getInputs.length != 0)
-                    miss_rate += modules(i).getInputs(0).gain * 256
+                    miss_rate += modules(i).getInputs(0).gain
             if (modules(j).getOutputs.length != 0)
-                    miss_rate += modules(j).getOutputs(0).gain * 256
+                    miss_rate += modules(j).getOutputs(0).gain
             load = time + miss_time * miss_rate
             val seg = new SPSegment(0)
             for (mod_id <- i to j) {
@@ -63,10 +63,10 @@ private[scalapipe] class BothSegMapper(
             segments = int_best_partition(i,j)
             for (segment <- segments) {
                 if (modules(i).getInputs.length != 0)
-                    load += modules(i).getInputs(0).gain * miss_time * 256
+                    load += modules(i).getInputs(0).gain * miss_time 
                     
                 if (modules(j).getOutputs.length != 0)
-                    load += modules(j).getOutputs(0).gain * miss_time * 256
+                    load += modules(j).getOutputs(0).gain * miss_time
             }
         }
         segmentation(i) :+= segments
