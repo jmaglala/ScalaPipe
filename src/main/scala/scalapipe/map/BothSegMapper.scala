@@ -191,7 +191,10 @@ private[scalapipe] class BothSegMapper(
             }
         }
         
+        var segId = 0
         for (segment <- sp.segments) {
+            segId += 1
+            segment.id = segId
             print(segment.id + ") ")
             for(k <- segment.kernels) {
                     if (sp.parameters.get[Int]('debug) >= 2)
@@ -209,7 +212,9 @@ private[scalapipe] class BothSegMapper(
     }
     
     def assign_segments_to_cores() : Unit = {
-        for (i <- 0 to sp.segments.length-1)
+        for (i <- 0 to sp.segments.length-1) {
+            
             sp.segments(i).tid = i
+        }
     }
 }
