@@ -19,13 +19,13 @@ int Kernel::get_available(int in_port)
     return result;
 }
 
-int * Kernel::read_value(int in_port)
+char * Kernel::read_value(int in_port)
 {
-    int *ptr = NULL;
+    char *ptr = NULL;
     int end_count = 0;
     for(;;)
     {
-        *ptr = inputs[in_port]->read();
+        inputs[in_port]->read((char &) *ptr);
         if(SPLIKELY(ptr != NULL))
         {
             clock.count += 1;

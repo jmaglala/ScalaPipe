@@ -127,7 +127,14 @@ private[scalapipe] class CKernelGenerator(
 
         write(s"void ${kname}::run()")
         enter
-        write(s"${kt.name} * kernel = this;")
+        //write(s"${kt.name} * kernel = this;")
+        // Declare inputs
+        for (i <- kt.inputs)
+        {
+            val name = i.name
+            val vtype = i.valueType
+            write(s"$vtype $name;")
+        }
         // Declare locals.
         for (l <- kt.states if l.isLocal) {
             val name = l.name

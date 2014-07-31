@@ -14,25 +14,23 @@ class Edge
 public:
     
     uint64_t m_size;
-    int * m_buff;
+    char * m_buff;
     bool m_initialized;
-    
-    //Kernel * source;
-    //Kernel * dest;
+    size_t width;
     
     // New interface
-    Edge(){}
+    Edge(uint64_t _size,size_t _width): m_size(_size),width(_width){}
     ~Edge(){}
     
-    virtual int read () = 0;
-    virtual void write(const int val) = 0;
+    virtual void read (char & loc) = 0;
+    virtual void write(char & val) = 0;
     
     virtual uint64_t get_available() = 0;
     virtual bool ready(uint64_t change, bool writing) = 0;
     virtual bool full() = 0;
     virtual bool empty() = 0;
     
-    void set_buff(int * buff = NULL);
+    void set_buff(char * buff = NULL);
     bool is_initd();
     
     // Size in bytes

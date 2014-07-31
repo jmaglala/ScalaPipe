@@ -52,7 +52,8 @@ private[scalapipe] class CKernelNodeEmitter(
         } else if (kt.isInput(name)) {
             val index = kt.inputIndex(name)
             //return s"sp_read_input$index(kernel)"
-            return s"inputs[$index]->read()"
+            //return s"inputs[$index]->read()"
+            return s"$name"
         } else if (kt.isOutput(name)) {
             return s"$name"
         } else if (kt.isState(name) || kt.isConfig(name)) {
@@ -76,13 +77,19 @@ private[scalapipe] class CKernelNodeEmitter(
     override def emitAssign(node: ASTAssignNode) {
         val dest = emitExpr(node.dest)
         val src = emitExpr(node.src)
+        val inputs = localInputs(node)
+        for (i <- inputs) {
+            val iindex = kt.inputIndex(i)
+            val vtype = kt.inputs(iindex).valueType.name
+            write(s"inputs[$iindex]->read((char &) $i);")
+        }
         write(s"$dest = $src;")
         val outputs = localOutputs(node)
         for (o <- outputs) {
             val oindex = kt.outputIndex(o)
             val vtype = kt.outputs(oindex).valueType.name
             //write(s"$o = ($vtype*)sp_allocate(kernel, $oindex);")
-            write(s"outputs[$oindex]->write($dest);")
+            write(s"outputs[$oindex]->write((char &) $dest);")
         }
         updateClocks(getTiming(node))
         /*for (oindex <- outputs.map(kt.outputIndex)) {

@@ -5,15 +5,15 @@
 
 uint64_t Edge::get_size()
 {
-    return this->m_size * sizeof(int);
+    return m_size * width;
 }
 
 bool Edge::is_initd()
 {
-    return this->m_initialized;
+    return m_initialized;
 }
 
-void Edge::set_buff(int * buff)
+void Edge::set_buff(char * buff)
 {
     if (buff == NULL)
         posix_memalign((void**)&this->m_buff,ALIGN, this->get_size());

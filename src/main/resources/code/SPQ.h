@@ -20,10 +20,10 @@ protected:
     
     uint64_t m_count;
 public:
-    SPQ(uint64_t size);
+    SPQ(uint64_t size, size_t width);
     
-    int read();
-    void write(const int val);
+    void read(char & loc);
+    void write(char & val);
     uint64_t get_available();
     bool ready(uint64_t change, bool writing);
     bool full();

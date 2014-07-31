@@ -44,7 +44,7 @@ public:
     //void * allocate(int out_port);
     //void send(int out_port);
     int get_available(int in_port);
-    int * read_value(int in_port);
+    char * read_value(int in_port);
     //void release(int in_port);
 };
 

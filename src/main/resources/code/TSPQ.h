@@ -27,10 +27,9 @@ protected:
     // helper count
     std::atomic<uint64_t> m_count;
     
-    
 public:
-    int read();
-    void write(const int val);
+    void read(char & loc);
+    void write(char & val);
     
     bool ready(uint64_t change, bool writing);
     bool full();
@@ -38,7 +37,7 @@ public:
     
     uint64_t get_available();
 
-    TSPQ(uint64_t size);
+    TSPQ(uint64_t size, size_t width);
     ~TSPQ();
 };
 

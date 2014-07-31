@@ -101,7 +101,7 @@ void Segment::allocate_memory()
         addr += kernelList[i]->state * sizeof(uint8_t);
         if (i != kernelList.size() -1)
         {
-            kernelList[i]->outputs[0]->set_buff((int *)&buff[addr]);
+            kernelList[i]->outputs[0]->set_buff((char *)&buff[addr]);
             addr += kernelList[i]->outputs[0]->get_size();
         }
     }

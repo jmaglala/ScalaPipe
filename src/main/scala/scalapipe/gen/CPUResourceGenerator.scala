@@ -424,6 +424,7 @@ private[scalapipe] class CPUResourceGenerator(
         write(s"int segFireCount[${sp.segments.length}];")
         write(s"std::vector<Kernel*> modList;")
         write(s"std::vector<Segment*> segmentList;")
+        write(s"std::vector<Edge*> edges;")
         
         // Write the top edge code.
         //write(edgeTop)
@@ -505,7 +506,6 @@ private[scalapipe] class CPUResourceGenerator(
         
         // Initialize the edges.
         //write(edgeInit)
-        write(s"std::vector<Edge*> edges;")
         for (s <- sp.streams)
         {
             val source = s.sourceKernel.index - 1
@@ -514,9 +514,9 @@ private[scalapipe] class CPUResourceGenerator(
             val vtype = s.valueType
             val cross = s.parameters.get[Boolean]('crossedge)
             if (cross)
-                write(s"edges.push_back(new TSPQ(${depth}));")
+                write(s"edges.push_back(new TSPQ(${depth},sizeof(${vtype})));")
             else
-                write(s"edges.push_back(new SPQ(${depth}));")
+                write(s"edges.push_back(new SPQ(${depth},sizeof(${vtype})));")
             // Link the edges to the kernels
             write(s"modList[${source}]->outputs.push_back(edges.back());")
             write(s"modList[${dest}]->inputs.push_back(edges.back());")

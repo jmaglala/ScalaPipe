@@ -3,9 +3,8 @@
 
 #include "SPQ.h"
 
-SPQ::SPQ(uint64_t size)
+SPQ::SPQ(uint64_t size, size_t width) : Edge(size+1,width)
 {
-    this->m_size = size+1;
     m_read_pos = 0;
     m_write_pos = 0;
     m_count = 0;
@@ -53,18 +52,17 @@ bool SPQ::full()
 }
 
 // A blocking read
-int SPQ::read()
+void SPQ::read(char & loc)
 {
     while(empty())
         ;
-    int ret = this->m_buff[m_read_pos];
+    loc = this->m_buff[m_read_pos];
     m_read_pos = (m_read_pos + 1) % this->m_size;
     m_count--;
-    return ret;
 }
 
 // A blocking write
-void SPQ::write(const int val)
+void SPQ::write(char & val)
 {
     while(full())
         ;

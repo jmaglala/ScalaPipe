@@ -4,9 +4,8 @@
 #include "TSPQ.h"
 
 
-TSPQ::TSPQ(uint64_t size)
+TSPQ::TSPQ(uint64_t size,size_t width)  : Edge(size+1,width)
 {
-    this->m_size = size+1;
     m_read_pos.store(0);
     m_write_pos.store(0);
     m_count.store(0);
@@ -68,19 +67,18 @@ bool TSPQ::full()
 }
 
 
-int TSPQ::read()
+void TSPQ::read(char & loc)
 {
     while(empty())
         ;
     auto curr_pos = m_read_pos.load();
-    int ret = this->m_buff[curr_pos];
+    loc = this->m_buff[curr_pos];
     m_read_pos.store((curr_pos +1) % this->m_size,std::memory_order_release);
     m_count--;
-    return ret;
 }
 
 
-void TSPQ::write(const int val)
+void TSPQ::write(char & val)
 {
     while(full())
         ;
