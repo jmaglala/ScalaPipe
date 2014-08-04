@@ -32,7 +32,7 @@ private[scalapipe] class BothSegMapper(
             // Normalize the runtime
             var iterations : Double = 1
             if (mod != modules.head)
-                iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
+                iterations = mod.getInputs(0).gain * 256 / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
             val normal_rt = iterations * mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
             // TODO: Might need to use doubles throughout
             time += normal_rt
@@ -63,7 +63,7 @@ private[scalapipe] class BothSegMapper(
             segments = int_best_partition(i,j)
             for (segment <- segments) {
                 if (modules(i).getInputs.length != 0)
-                    load += modules(i).getInputs(0).gain * miss_time
+                    load += modules(i).getInputs(0).gain * miss_time 
                     
                 if (modules(j).getOutputs.length != 0)
                     load += modules(j).getOutputs(0).gain * miss_time
@@ -171,13 +171,13 @@ private[scalapipe] class BothSegMapper(
         }
         if (sp.parameters.get[Int]('debug) >= 2)
             println("Load found: " + L_guess)
-        var segid = 0
+        var segid = 1
         
         for (index <- 1 to segments.length - 1) {
             var startKern = segments(index)
             var endKern = 0
             if (index == segments.length-1) {
-                endKern = modules.length - 1
+                endKern = modules.length-1
             }
             else {
                 endKern = segments(index+1) - 1
@@ -190,12 +190,8 @@ private[scalapipe] class BothSegMapper(
                 sp.segments :+= segment
             }
         }
-        
-        var segId = 0
         for (segment <- sp.segments) {
-            segId += 1
-            segment.id = segId
-            print(segment.id + ") ")
+            
             for(k <- segment.kernels) {
                     if (sp.parameters.get[Int]('debug) >= 2)
                         print(k)
@@ -212,32 +208,8 @@ private[scalapipe] class BothSegMapper(
     }
     
     def assign_segments_to_cores() : Unit = {
-        val segPerCore = sp.segments.length/sp.parameters.get[Int]('cores)
-        val extraSegs = sp.segments.length%sp.parameters.get[Int]('cores)
-        var segNum = 0
-        if (sp.parameters.get[Int]('debug) >= 2) {
-            println("ASSIGNING SEGS TO CORES")
-            println("Min SegPerCore: " + segPerCore)
-        }
-        for (i <- 0 to (sp.parameters.get[Int]('cores)-1)) {
-            if (sp.parameters.get[Int]('debug) >= 2)
-                print("Core " + i + ": ")
-            for (j <- 1 to segPerCore) {
-                if (sp.parameters.get[Int]('debug) >= 2)
-                    print(segNum + " ")
-                sp.segments(segNum).tid = i
-                segNum += 1
-            }
-            if (i < (extraSegs)) {
-                if (sp.parameters.get[Int]('debug) >= 2)
-                    print(segNum + " ")
-                sp.segments(segNum).tid = i
-                segNum += 1
-            }
-            if (sp.parameters.get[Int]('debug) >= 2)
-                println()
-        }
-        if (sp.parameters.get[Int]('debug) >= 2)
-            println("DONE ASSIGNING SEGS TO CORES")
+//         for (i <- 0 to sp.segments.length-1) {
+//             sp.segments(i).tid = i
+//         }
     }
 }
