@@ -28,7 +28,7 @@ private[scalapipe] class RuntimeSegMapper(
             var kernel_rt = mod.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
             var iterations : Double = 1
             if (mod != modules.head)
-                iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
+                iterations = mod.getInputs(0).gain / mod.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt * sp.instances(0).kernel.outputs(0).rate
             var normal_rt = kernel_rt * iterations
             mod_rt :+= normal_rt.toInt
 
@@ -72,7 +72,6 @@ private[scalapipe] class RuntimeSegMapper(
                         rand = nextInt(mods)
                     segs :+= rand
                 }
-                largeKerns.foreach(println)
             }
         }
         else {
@@ -127,12 +126,12 @@ private[scalapipe] class RuntimeSegMapper(
             var segment = Seq[KernelInstance]()
             if (sp.parameters.get[Int]('debug) >= 2)
                 println("start: " + startKern + " end: " + endKern)
-            for (kernIndex <- startKern to endKern) {
-                segment :+= modules(kernIndex)
-            }
             segid += 1
             var sps = new SPSegment(segid)
-            sps.kernels = segment
+            for (kernIndex <- startKern to endKern) {
+                sps.kernels :+= modules(kernIndex)
+                sps.runtime += mod_rt(kernIndex)
+            }
             segList :+= sps
         }
         sp.segments = segList
@@ -170,7 +169,7 @@ private[scalapipe] class RuntimeSegMapper(
             var segments = sp.segments.slice(1,sp.segments.length).sortWith(_.runtime > _.runtime)
             
             //Create array to keep track of assigned runtime per core
-            var procTotalRT = Array[Int]()
+            var procTotalRT = Array[Double]()
             
             //Assign the first segment to first core and update the total runtime array
             sp.segments(0).tid = 0
@@ -178,7 +177,7 @@ private[scalapipe] class RuntimeSegMapper(
             
             //Append empty ints to the runtime array to be used in the next loop
             for (i <- 1 to cores-1)
-                procTotalRT :+= 0   
+                procTotalRT :+= 0.0   
             //For the unassigned segments, find the minimum RT of all threads, assign the segment to that thread, and update the runtime array
             for (i <- 0 to segments.length-1) {
                 var targetProc = procTotalRT.indexOf(procTotalRT.min)

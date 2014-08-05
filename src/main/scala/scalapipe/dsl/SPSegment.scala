@@ -11,7 +11,7 @@ class SPSegment (_id: Int) {
     private[scalapipe] var input_rate: Double = 1
     private[scalapipe] var output_rate: Double = 1
     private[scalapipe] var amplification: Double = 1
-    private[scalapipe] var runtime = 0
+    private[scalapipe] var runtime: Double = 0
     private[scalapipe] var state = 0
     private[scalapipe] var threshold = 1
     
@@ -48,11 +48,6 @@ class SPSegment (_id: Int) {
             
         //iterate through and add up runtimes and state size
         for (kernel <- kernels) {
-            var kernel_rt = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
-            var iterations : Double = 1
-            if (kernel != kernels.head)
-                iterations = kernel.getInputs(0).gain / kernel.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
-            runtime += (kernel_rt * iterations).toInt
             state += kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt 
         }
         var i = 0
