@@ -48,7 +48,11 @@ class SPSegment (_id: Int) {
             
         //iterate through and add up runtimes and state size
         for (kernel <- kernels) {
-            runtime += kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
+            var kernel_rt = kernel.kernelType.configs.filter(c => c.name == "runtime").head.value.long.toInt
+            var iterations : Double = 1
+            if (kernel != kernels.head)
+                iterations = kernel.getInputs(0).gain / kernel.kernelType.configs.filter(c => c.name == "inrate").head.value.long.toInt
+            runtime += (kernel_rt * iterations).toInt
             state += kernel.kernelType.configs.filter(c => c.name == "state").head.value.long.toInt 
         }
         var i = 0
