@@ -26,41 +26,41 @@ private[scalapipe] class RandomSegMapper(
                 sps.kernels.foreach(println)
                 sp.segments :+= sps
             }
-            return
         }
-        
-        //Choose random edges to segment kernels
-        for (i <- 0 to (numOfCores-1)) {
-            rand :+= nextInt(modsLen)
-            //Make sure the same edge isn't chosen twice
-            while (rand.slice(0,i).contains(rand.last))
-                rand(i) = nextInt(modsLen)
-        }
-        //Sort edges from smallest to largest
-        rand = rand.sortWith(_ < _)
-        
-        if (sp.parameters.get[Int]('debug) >= 2)
-            println("CREATING SEGMENTS")
-        //Create segments with the chosen random edges
-        var segid = 0
-        for (i <- 0 to rand.length-1) {
-            var segment = Seq[KernelInstance]()
-            var startKern = 0
-            var endKern = 0
-            if (i != rand.length-1)
-                endKern = rand(i+1)-1
-            else
-                endKern = modsLen-1
-            if (i != 0)
-                startKern = rand(i)
-            for (kernIndex <- startKern to endKern)
-                segment :+= modules(kernIndex)
+        else {
+            //Choose random edges to segment kernels
+            for (i <- 0 to (numOfCores-1)) {
+                rand :+= nextInt(modsLen)
+                //Make sure the same edge isn't chosen twice
+                while (rand.slice(0,i).contains(rand.last))
+                    rand(i) = nextInt(modsLen)
+            }
+            //Sort edges from smallest to largest
+            rand = rand.sortWith(_ < _)
             
-            segid += 1
-            var sps = new SPSegment(segid)
-            sps.kernels = segment
-            //sps.initVariables()
-            sp.segments :+= sps
+            if (sp.parameters.get[Int]('debug) >= 2)
+                println("CREATING SEGMENTS")
+            //Create segments with the chosen random edges
+            var segid = 0
+            for (i <- 0 to rand.length-1) {
+                var segment = Seq[KernelInstance]()
+                var startKern = 0
+                var endKern = 0
+                if (i != rand.length-1)
+                    endKern = rand(i+1)-1
+                else
+                    endKern = modsLen-1
+                if (i != 0)
+                    startKern = rand(i)
+                for (kernIndex <- startKern to endKern)
+                    segment :+= modules(kernIndex)
+                
+                segid += 1
+                var sps = new SPSegment(segid)
+                sps.kernels = segment
+                //sps.initVariables()
+                sp.segments :+= sps
+            }
         }
         
         for (segment <- sp.segments) {

@@ -62,10 +62,20 @@ private[scalapipe] class RuntimeSegMapper(
         
         val largeKernMinSegs = 2 * largeKerns.length + 1
         if (largeKerns.length != 0) {
-            largeKerns.foreach(segs :+= _)
-            largeKerns.foreach(segs :+= _+1)
+            for (segIndex <- largeKerns) {
+                if (segs.contains(segIndex) == false) {
+                    segs :+= segIndex
+                    println("adding " + segIndex)
+                }
+                if (segIndex+1 <= mods-1 && segs.contains(segIndex+1) == false) {
+                    segs :+= segIndex+1
+                    println("adding next " + (segIndex+1))
+                }
+            }
             if (procs - largeKernMinSegs > 0) {
-                while (segs.length < procs) {
+                println("less than 0")
+                while (segs.length < procs && segs.length < mods) {
+                    println("stuck here")       
                     var rand = nextInt(mods)
                     //Make sure the same edge isn't chosen twice
                     while (segs.contains(rand))
