@@ -27,7 +27,8 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
                 gain = gain * (stream.sourceKernel.kernel.outputs(0).rate.toDouble / stream.sourceKernel.kernel.inputs(0).rate.toDouble)
             }
             stream.gain = gain
-            println(stream.index + ": " + gain + " ")
+            //if (sp.parameters.get[Int]('debug) >= 2)
+                //println(stream.index + ": " + gain + " ")
             //println(Math.round(stream.gain))
         }
     }
