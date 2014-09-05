@@ -12,7 +12,6 @@ public:
     void update_prev_seg();
     
     std::vector<Kernel*> kernelList;         // The list of mod_ids
-    int * segFireCount;
     
     int id;              // An id from the scheudle
     
@@ -39,7 +38,7 @@ public:
     uint8_t *        buff;
     
 
-    Segment(int ,std::vector<Kernel*> &, int *);
+    Segment(int ,std::vector<Kernel*> &);
     bool isFireable();
     int fireIterations();
     void fire();

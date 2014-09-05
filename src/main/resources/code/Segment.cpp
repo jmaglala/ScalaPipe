@@ -2,7 +2,9 @@
 #include <iostream>
 
 static int sid = 0;
-Segment::Segment(int segId, std::vector<Kernel*> & kernels, int * segFireCountArray) : id(segId), kernelList(kernels), segFireCount(segFireCountArray) {    
+Segment::Segment(int segId, std::vector<Kernel*> & kernels) : 
+    id(segId), kernelList(kernels)
+{    
     state = 0;
     runtime = 0;
     output_rate = 1;
