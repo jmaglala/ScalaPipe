@@ -114,11 +114,11 @@ bool Segment::isFireable() {
     {
         return true;
     }
-    //If it's the first segment use its maximum output fires
+    //If it's the first segment
     if (in_buf_size == 0) {
         return write_buf_fireable;
     }
-    //If it's the last segment use its maximum input fires
+    //If it's the last segment
     else if (out_buf_size == 0) {
         return read_buf_fireable;
     }
@@ -174,7 +174,7 @@ void Segment::update_prev_seg() {
 
 void Segment::fire() {
     // Fire the first kernel
-    std::cout << "Firing 0" << std::endl;
+    //std::cout << "Firing 0" << std::endl;
     kernelList[0]->run();
     if (in_buf_size > 0) {
         read_count++;
@@ -182,7 +182,7 @@ void Segment::fire() {
     }
     if (kernelList.size() == 1)
     {
-        std::cout << "Only 1 kernel" << std::endl;
+        //std::cout << "Only 1 kernel" << std::endl;
         if (out_buf_size > 0)
         {
             write_count++;
@@ -197,7 +197,7 @@ void Segment::fire() {
         // If the current kernel is ready to fire
         if (kernelList[fireKernelNum]->fireable())
         {
-            std::cout << "Firing " << fireKernelNum << std::endl;
+            //std::cout << "Firing " << fireKernelNum << std::endl;
             kernelList[fireKernelNum]->run();
             // If we're at the end, update
             if (fireKernelNum == kernelList.size()-1)
