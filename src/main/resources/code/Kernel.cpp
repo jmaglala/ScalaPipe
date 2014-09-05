@@ -2,6 +2,7 @@
 #define _KERNEL_CPP_
 
 #include "Kernel.h"
+#include <iostream>
 
 int Kernel::get_free(int out_port)
 {
@@ -34,37 +35,41 @@ char * Kernel::read_value(int in_port)
     }
 }
 
-void Kernel::set_state(uint8_t * buff)
-{
-    state_buff = buff;
-}
+// void Kernel::set_state(uint8_t * buff)
+// {
+//     state_buff = buff;
+// }
 
-void Kernel::load()
-{
-    volatile int curr = 0;
-    for (int i=0;i<state;i++)
-    {
-        curr += state_buff[i];
-    }
-}
+// void Kernel::load()
+// {
+//     volatile int curr = 0;
+//     for (int i=0;i<state;i++)
+//     {
+//         curr += state_buff[i];
+//     }
+// }
 
 void Kernel::init()
 {
-    for(int i=0;i<state;i++)
-        state_buff[i] = i;
+//     for(int i=0;i<state;i++)
+//         state_buff[i] = i;
 }
 
 bool Kernel::fireable()
 {
     bool fireable = true;
+    //std::cout << "Checking fireable...";
+    //std::cout << " O" << outputs.size();
     if (outputs.size() > 0)
     {
         fireable = fireable && outputs[0]->ready(outrate,true);
     }
+    //std::cout << " I" << inputs.size();
     if (inputs.size() > 0)
     {
         fireable = fireable && inputs[0]->ready(inrate,false);
     }
+    //std::cout << std::endl;
     return fireable;
 }
 #endif

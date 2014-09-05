@@ -235,8 +235,8 @@ private[scalapipe] class CPUResourceGenerator(
                     write(s"if (segmentList[${segId-1}]->isFireable() && fireCount < total)");
                     write("{");
                     enter
-                        // First load the segment
-                        write(s"segmentList[${segId-1}]->load();")
+                        // First load the segment -> only in emupipe
+                        //write(s"segmentList[${segId-1}]->load();")
                         
                         if (sp.parameters.get[Int]('debug) >= 1)
                             write(s"std::cout << 'p' << ${tid} << ' ' << 's' << ${segId} << std::endl;")

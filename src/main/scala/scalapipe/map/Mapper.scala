@@ -222,6 +222,10 @@ private[scalapipe] trait AugmentBuffer extends Mapper{
     {
         super.map()
         assign_cross_buffers()
+        for (s <- sp.streams)
+        {
+            print(s.parameters.get('queueDepth))
+        }
     }
 }
 

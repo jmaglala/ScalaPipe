@@ -39,7 +39,8 @@ private[scalapipe] class CKernelGenerator(
         
         write(s"class ${kname} : public Kernel")
         enter
-        write("int * state_buffer;")
+        
+        // write("int * state_buffer;") this is only for emupipe
          
         /*for (c <- kt.configs) {
             val cname = c.name
