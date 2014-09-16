@@ -146,7 +146,8 @@ int Segment::fireIterations() {
 }
 
 void Segment::update_next_seg() {
-    if (write_count == (int)(write_count_threshold * .5) || write_count_threshold == 1) {
+    if (write_count == (int)(write_count_threshold * 0.5) -1|| write_count_threshold == 1) {
+        //std::cout << "S" << id << " updating_next" << std::endl;
         write_buf_fireable = false;
         next_seg->read_buf_fireable = true;
     }
@@ -156,7 +157,8 @@ void Segment::update_next_seg() {
 }
 
 void Segment::update_prev_seg() {
-    if (read_count == (int)(read_count_threshold * .5) || read_count_threshold ==1) {
+    if (read_count == (int)(read_count_threshold * 0.5) -1 || read_count_threshold ==1) {
+        //std::cout << "S" << id << " updating_prev" << std::endl;
         read_buf_fireable = false;
         prev_seg->write_buf_fireable = true;
     }

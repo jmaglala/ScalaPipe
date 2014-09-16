@@ -24,28 +24,18 @@ public:
     std::vector<Edge*> inputs;
     std::vector<Edge*> outputs;
     
-    //uint8_t * state_buff;
-    
     Kernel(int _in, int _out, int _state, int _rt) :
         id(kid++),inrate(_in), outrate(_out), state(_state), runtime(_rt)
     {}
     ~Kernel()
     {}
     
-    //void set_state(uint8_t * buff);
-    //void load();
-    void init();
-    
-    bool fireable();
-    
     virtual void run() = 0;
     
-    int get_free(int out_port);
-    //void * allocate(int out_port);
-    //void send(int out_port);
-    int get_available(int in_port);
-    char * read_value(int in_port);
-    //void release(int in_port);
+    virtual int get_free(int out_port) = 0;
+    virtual int get_available(int in_port) = 0;
+    virtual char * read_value(int in_port) = 0;
+    virtual bool fireable() = 0;
 };
 
 #endif // _KERNEL_H_

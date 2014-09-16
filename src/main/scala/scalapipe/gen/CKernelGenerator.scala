@@ -39,8 +39,6 @@ private[scalapipe] class CKernelGenerator(
         
         write(s"class ${kname} : public Kernel")
         enter
-        
-        // write("int * state_buffer;") this is only for emupipe
          
         /*for (c <- kt.configs) {
             val cname = c.name
@@ -67,6 +65,10 @@ private[scalapipe] class CKernelGenerator(
         write(s"${kname}(int, int, int, int);")
         write(s"~${kname}();")
         write(s"void run();")
+        write(s"int get_free(int out_port);")
+        write(s"int get_available(int in_port);")
+        write(s"char * read_value(int in_port);")
+        write(s"bool fireable();")
         
         leave
         write(";")
@@ -167,10 +169,75 @@ private[scalapipe] class CKernelGenerator(
 
     }
 
+    private def emitGetFree {
+        val kname = kt.name
+        write(s"int ${kname}::get_free(int out_port)")
+        enter
+            write(s"int result = 0;")
+            write(s"if (out_port <= outputs.size()-1)")
+            enter
+                write(s"result = outputs[out_port]->get_free();")
+            leave
+            write(s"return result;")
+        leave
+    }
+    
+    private def emitGetAvailable {
+        val kname = kt.name
+        write(s"int ${kname}::get_available(int in_port)")
+        enter
+            write(s"int result = 0;")
+            write(s"if (in_port <= inputs.size()-1)")
+            enter
+                write(s"result = inputs[in_port]->get_available();")
+            leave
+            write(s"return result;")
+        leave
+    }
+    
+    private def emitReadValue {
+        val kname = kt.name
+        write(s"char * ${kname}::read_value(int in_port)")
+        enter
+            write(s"char *ptr = NULL;")
+            write(s"int end_count = 0;")
+            write(s"for(;;)")
+            enter
+                write(s"inputs[in_port]->read((char &) *ptr);")
+                write(s"if(SPLIKELY(ptr != NULL))")
+                enter
+                    write(s"clock.count += 1;")
+                    write(s"return ptr;")
+                leave
+            leave
+        leave
+    }
+    
+    private def emitFireable {
+        val kname = kt.name
+        write(s"bool ${kname}::fireable()")
+        enter
+            write(s"bool fireable = true;")
+            write(s"if (outputs.size() > 0)")
+            enter
+                write(s"fireable = fireable && outputs[0]->ready(outrate,true);")
+            leave
+            write(s"if (inputs.size() > 0)")
+            enter
+                write(s"fireable = fireable && inputs[0]->ready(inrate,false);")
+            leave
+            write(s"return fireable;")
+        leave
+    }
+    
     private def emitSource: String = {
         emitInit
         emitDestroy
         emitRun
+        emitGetFree
+        emitGetAvailable
+        emitReadValue
+        emitFireable
         emitFunctionSource
         getOutput
     }
