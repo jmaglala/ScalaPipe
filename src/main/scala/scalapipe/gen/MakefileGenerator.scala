@@ -23,7 +23,7 @@ private[scalapipe] class MakefileGenerator(
             makePS.println("V_FILES=" + name + ".v")
         }
         if (platforms.contains(Platforms.C)) {
-            makePS.println("C_FILES=" + name + ".c")
+            makePS.println("C_FILES=" + name + ".cpp")
         }
         makePS.println("""
 # Get the source files.
@@ -118,6 +118,8 @@ clean:
 
         write("""
 
+# Include the base class files
+SBASE=Segment.cpp Edge.cpp Kernel.cpp SPQ.cpp TSPQ.cpp
 # Determine the full path to the project.
 ifndef THIS
     export THIS:=$(shell pwd)
@@ -143,7 +145,7 @@ export V_FILE_LIST=$(THIS)/.v_file_list
 
 CXXFILES=$(strip $(foreach f,$(shell cat $(CXX_FILE_LIST) 2>/dev/null),$f))
 CFILES=$(strip $(foreach f,$(shell cat $(C_FILE_LIST) 2>/dev/null),$f))
-ALL_C_FILES=$(CXXFILES) $(CFILES)
+ALL_C_FILES=$(CXXFILES) $(CFILES) $(SBASE)
 OBJECTS = $(foreach f,$(ALL_C_FILES),$(addsuffix .o,$(basename $f))) $(TTOBJ)
 
 # Compile by default
@@ -184,6 +186,9 @@ clean_blocks:
 			cd $(b) && $(MAKE) -i clean ; \
 		fi);)
 
+# Keep the object files
+.SECONDARY: $(OBJECTCS)
+		
 # Rule for compiling everything.
 compile: blocks
 	$(MAKE) $(TARGETS)
