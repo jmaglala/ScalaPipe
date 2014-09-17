@@ -11,6 +11,12 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
     def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
     def lcm(a: Int, b: Int)=(a*b).abs/gcd(a,b)
     
+    // Collect state information from input file
+    def parse_states()
+    {
+    
+    }
+    
     // Compute Stream gains
     def compute_gains()
     {
@@ -167,6 +173,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
     // Toplevel map 
     def map() 
     {   
+        parse_states()
         compute_gains()
         assign_min_buffers()
         create_segments()

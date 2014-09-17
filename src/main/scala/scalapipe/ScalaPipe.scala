@@ -475,7 +475,7 @@ private[scalapipe] class ScalaPipe {
         insertParameters
         insertMeasures
 
-        // Map? HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+        // Map?
         val map = parameters.get[String]('sched)
         val nEdges = parameters.get[Int]('nEdges)
         var mapper: Mapper = {
