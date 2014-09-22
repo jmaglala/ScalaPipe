@@ -14,7 +14,7 @@ private[scalapipe] class KernelInstance(
     private[this] var outputs = Map[IntPortName, Stream]()
     private[this] var inputs = Map[IntPortName, Stream]()
     private[scalapipe] var configs = Map[String, Literal]()
-
+    private[scalapipe] var state: Int = 1
     collectDebugInfo
 
     def apply(): StreamList = new StreamList(sp, this)

@@ -1,7 +1,7 @@
 #!/bin/bash
 get_text() {
     o=$1
-    size=`readelf -a $o | awk 'f{print;f=0} /] .text/{f=1}' | head -1 |cut -d " " -f8 | sed 's/0*\(.*\)/0x\1/g'`
+    size=`readelf -a $o | awk 'f{print;f=0} /] .text /{f=1}' | head -1 |cut -d " " -f8 | sed 's/0*\(.*\)/0x\1/g'`
     printf "%d\n" $size
 }
 

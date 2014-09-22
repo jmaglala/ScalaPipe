@@ -188,7 +188,11 @@ clean_blocks:
 
 # Keep the object files
 .SECONDARY: $(OBJECTCS)
-		
+
+# Compile the object files only
+.PHONY: objects
+objects: $(OBJECTS)
+
 # Rule for compiling everything.
 compile: blocks
 	$(MAKE) $(TARGETS)

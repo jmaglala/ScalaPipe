@@ -1,6 +1,9 @@
 package scalapipe
 
 import java.io.File
+import java.nio.file.{Paths, Files}
+
+import scala.io.Source
 
 import scalapipe.dsl._
 import scalapipe.map._
@@ -24,6 +27,7 @@ private[scalapipe] class ScalaPipe {
     private val resourceManager = new ResourceManager(this)
 
     // Scheduling states
+    private[scalapipe] var baseState: Int = 0
     private[scalapipe] var segments = Seq[SPSegment]()
     
     private def addKernelType(k: Kernel,
@@ -465,6 +469,26 @@ private[scalapipe] class ScalaPipe {
 
     }
 
+    private def parseProfiles(dirname: String) {
+        val filename = s"${dirname}/.profiles"
+        for (line <- Source.fromFile(filename).getLines()) {
+            val entry = line.split(":")
+            val name = entry(0)
+            val state = entry(1)
+            if (name.compare("BASE") == 0)
+            {
+                println(s"found BASE:${state}")
+                baseState = state.toInt
+            }
+            else
+            {
+                val kt = instances.filter(k => k.label == name)(0)
+                kt.state = state.toInt
+                println(s"found ${name}:${state}")
+            }
+        }
+    }
+    
     private[scalapipe] def emit(dirname: String) {
 
         insertEdges
@@ -475,6 +499,32 @@ private[scalapipe] class ScalaPipe {
         insertParameters
         insertMeasures
 
+        
+        // Create the directory.
+        val dir = new File(dirname)
+        dir.mkdir
+
+        RawFileGenerator.emitFile(dir, "ScalaPipe.h")
+        RawFileGenerator.emitFile(dir, "scalapipe.v")
+        RawFileGenerator.emitFile(dir, "Segment.h")
+        RawFileGenerator.emitFile(dir, "Segment.cpp")
+        RawFileGenerator.emitFile(dir, "Kernel.h")
+        RawFileGenerator.emitFile(dir, "Edge.h")
+        RawFileGenerator.emitFile(dir, "Edge.cpp")
+        RawFileGenerator.emitFile(dir, "SPQ.h")
+        RawFileGenerator.emitFile(dir, "SPQ.cpp")
+        RawFileGenerator.emitFile(dir, "TSPQ.h")
+        RawFileGenerator.emitFile(dir, "TSPQ.cpp")
+        RawFileGenerator.emitFile(dir, "profState.sh")
+        
+        emitKernels(dir)
+        emitMakefile(dir)
+        
+        if (!Files.exists(Paths.get(s"${dirname}/.profiles")))
+            Error.exit
+        else 
+            parseProfiles(dirname)
+        
         // Map?
         val map = parameters.get[String]('sched)
         val nEdges = parameters.get[Int]('nEdges)
@@ -507,22 +557,6 @@ private[scalapipe] class ScalaPipe {
             }
         }
         mapper.map()
-        
-        // Create the directory.
-        val dir = new File(dirname)
-        dir.mkdir
-
-        RawFileGenerator.emitFile(dir, "ScalaPipe.h")
-        RawFileGenerator.emitFile(dir, "scalapipe.v")
-        RawFileGenerator.emitFile(dir, "Segment.h")
-        RawFileGenerator.emitFile(dir, "Segment.cpp")
-        RawFileGenerator.emitFile(dir, "Kernel.h")
-        RawFileGenerator.emitFile(dir, "Edge.h")
-        RawFileGenerator.emitFile(dir, "Edge.cpp")
-        RawFileGenerator.emitFile(dir, "SPQ.h")
-        RawFileGenerator.emitFile(dir, "SPQ.cpp")
-        RawFileGenerator.emitFile(dir, "TSPQ.h")
-        RawFileGenerator.emitFile(dir, "TSPQ.cpp")
 
         val fpga = parameters.get[String]('fpga)
         fpga match {
@@ -538,10 +572,8 @@ private[scalapipe] class ScalaPipe {
         }
         
         emitTimeTrial(dir)
-        emitKernels(dir)
         emitDescription(dir)
         emitResources(dir)
-        emitMakefile(dir)
         Error.exit
 
     }
