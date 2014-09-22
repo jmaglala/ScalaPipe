@@ -21,7 +21,7 @@ private[scalapipe] abstract class Mapper(val sp : ScalaPipe)
         {
             if (stream.index == 1)
             {
-                gain = 1.0
+                gain = stream.sourceKernel.kernel.outputs(0).rate.toDouble
             }
             else
             {

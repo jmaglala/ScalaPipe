@@ -207,6 +207,19 @@ private[scalapipe] class CPUResourceGenerator(
         var total = sp.parameters.get[Int]('iterations)
         
         
+        if (sp.segments.length == 1) {
+            if (tid == 0) {
+                write(s"for (int i=0; i<$total; i++) {")
+                enter
+                write(s"segmentList[${thread_segments(0).id-1}]->fire();")
+                leave
+                write("}")
+            }
+            leave
+            write("}")
+            return
+        }
+        
         //If it's the first thread, then write the total and fireCount to track the fires
         if (tid == 0) {
             write(s"int total = $total;");
